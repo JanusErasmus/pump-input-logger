@@ -8,6 +8,7 @@
 #include "nvm.h"
 #include "sys_mon.h"
 #include "MCP_rtc.h"
+#include "picaxe_lcd.h"
 
 TermCMD::cmd_table_t TermCMD::mCmdTable [] =
 {
@@ -51,6 +52,9 @@ TermCMD::cmd_table_t TermCMD::mCmdTable [] =
 
     {"RTC TIME"	,0,0,0},
     {"setRTC", "<yyyy mm dd HH MM SS>","Set MCP RTC", cRTC::set},
+
+    {"PICAXE serial-LCD",0,0,0},
+    {"lcd", "",		"Debug LCD", cPICAXEserialLCD::debugCMD},
 
     {0,0,0,0},
 };

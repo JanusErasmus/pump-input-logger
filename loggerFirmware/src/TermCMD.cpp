@@ -166,11 +166,12 @@ void SpiFlash::readCmd(cTerm & t,int argc,char *argv[])
 		if (!error)
 		{
 			t<<t.format(GREEN("Read %d bytes from serial flash at address 0x%08X\n"), num, addr);
-			for (cyg_uint32 i = 0 ; i < num ; i++)
-			{
-				diag_printf(" 0x%02X", buff[i]);
-
-			}
+//			for (cyg_uint32 i = 0 ; i < num ; i++)
+//			{
+//				diag_printf(" 0x%02X", buff[i]);
+//
+//			}
+			diag_dump_buf(buff, num);
 			diag_printf("\n");
 		}
 		else

@@ -10,13 +10,6 @@
 
 #define MODEM_BUFF_SIZE 1024
 
-class cAlarmCallback
-{
-public:
-	virtual void acknowledgeAlarm() = 0;
-
-	virtual ~cAlarmCallback(){};
-};
 
 class cModem : public cDebug
 {
@@ -87,7 +80,6 @@ private:
 	cyg_mutex_t mCallBusyMutex;
 	cyg_cond_t mCallBusyCond;
 	void handleURC(const char* response);
-	cAlarmCallback * mAckAlarm;
 
     bool showID();
     bool isSIMinserted();
@@ -144,7 +136,6 @@ public:
 	bool shutIP();
 	bool setFixedBaud();
 
-	void setAcknowledge(cAlarmCallback * ack){ mAckAlarm = ack; };
 	bool missedCall(const char* number);
 	bool missedCall(int number);
 	bool sendSMS(const char* number, const char* text);

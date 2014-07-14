@@ -28,7 +28,6 @@ cModem::cModem(char* serDev)
 {
 	mRXbuff[0] = 0;
 	mRXlen = 0;
-	mAckAlarm = 0;
 	mModemStatus = Off;
 	mConnection = IPunknown;
 	mSIMstatus = SIMneeded;
@@ -288,9 +287,7 @@ void cModem::handleURC(const char* response)
 	cmdLen = 4;
 	if(!strncmp(response,"BUSY", cmdLen))
 	{
-		diag_printf("MODEM: Alarm Reset \n");
-		if(mAckAlarm)
-			mAckAlarm->acknowledgeAlarm();
+		diag_printf("MODEM: Call busy \n");
 
 		cyg_cond_signal(&mCallBusyCond);
 		return;

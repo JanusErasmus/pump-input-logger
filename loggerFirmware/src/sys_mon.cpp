@@ -26,18 +26,8 @@ cSysMon* cSysMon::get()
 
 cSysMon::cSysMon()
 {
-	mAlarmAck = true;
-	mAlarmEnabled = false;
-	mAlarmTimer = 0;
-	mAlarmDisEnable = false;
-	mWalkOutTime = 0;
-	mAlarmFrameState = false;
-	mTestMissedCallFlag = false;
-
 	mRXlen = 0;
 	replied = false;
-	mUploadFailCnt = 0;
-	mPowerFlag = false;
 
 	mWatchDog = new wdKicker(300);
 
@@ -109,161 +99,14 @@ cyg_bool cSysMon::monitor()
 	return false;
 }
 
-void cSysMon::updateAlarmState()
-{
 
-}
-
-void cSysMon::armDisarm()
-{
-	if(!mWalkOutTime)
-	{
-		if(mAlarmEnabled)
-		{
-			disarm();
-		}
-		else
-		{
-			arm();
-		}
-
-		mWalkOutTime = 3;
-	}
-
-	mWalkOutTime--;
-	diag_printf("SYSMON: Walkout %d\n", mWalkOutTime);
-
-	if(mWalkOutTime == 0)
-	{
-		mAlarmDisEnable = false;
-	}
-}
-
-void cSysMon::arm()
-{
-	if(mAlarmEnabled)
-		return;
-
-	mAlarmEnabled = true;
-	cLED::get()->disable();
-	cLED::get()->indicate(cLED::walkOut);
-
-	diag_printf("SYSMON: ARMED\n");
-}
-
-void cSysMon::disarm()
-{
-	if(!mAlarmEnabled)
-		return;
-
-	mAlarmEnabled = false;
-	cLED::get()->enable();
-	diag_printf("SYSMON: DISARMED\n");
-}
 
 cyg_bool cSysMon::handleAction(cyg_addrword_t action)
 {
-	if(!(cModem::get()->getModemStatus() == cModem::GPRSatt || cModem::get()->getModemStatus() == cModem::NetworkRegistered))
-	{
-		diag_printf("Wait for modem to register\n");
-		QAction(new s_action(plainAction, action));
-
-		return false;
-	}
-
 	switch(action)
 	{
-	case sysmonActionTest:
-		{
-			time_t now = cRTC::get()->timeNow();
-			diag_printf("SYSMON: Try placing Test missed call %s", asctime(localtime(&now)));
-
-			if(placeMissedCall())
-			{
-				now = cRTC::get()->timeNow();
-
-				diag_printf("SYSMON: Test missed call placed  %s", asctime(localtime(&now)));
-			}
-			else
-			{
-				QAction(new s_action(plainAction, sysmonActionTest));
-			}
-		}
-		break;
-
-	case sysmonActionAlarm:
-	{
-		static cyg_uint32 missedCallHeader = 0;
-		time_t now = cRTC::get()->timeNow();
-
-		//when alarm was enabledDisbaled ignore alarms
-		if(mAlarmDisEnable)
-			break;
-
-		//only handle alarm action every 5 minutes
-		if(now < mAlarmTimer + 300)
-		{
-			diag_printf("SYSMON: Alarm was handled less than 5 min. ago\n");
-			break;
-		}
-		mAlarmTimer = now;
-
-		if(mAlarmEnabled && !mAlarmAck)
-		{
-			if(!missedCallHeader)
-			{
-				diag_printf("SYSMON: Alarm! try placing missed call %s", asctime(localtime(&now)));
-				missedCallHeader = now;
-			}
-
-			if(placeMissedCall())
-			{
-				now = cRTC::get()->timeNow();
-
-				diag_printf("SYSMON: missed call placed (%ds) - %s", now - missedCallHeader, asctime(localtime(&now)));
-				missedCallHeader = 0;
-
-//				cModem::get()->power(0);
-			}
-			else
-			{
-				mAlarmTimer = 0;
-				QAction(new s_action(plainAction, sysmonActionAlarm));
-			}
-		}
-		else
-		{
-			diag_printf("SYSMON: Alarm disabled NOT placing missed call\n");
-			mAlarmAck = true;
-		}
-	}
-	break;
-
-	case sysmonActionPowerLoss:
-		if(sendPowerSMS(0))
-		{
-			mPowerFlag = false;
-			diag_printf("SYSMON: SMS sent\n");
-		}
-		else
-		{
-			QAction(new s_action(plainAction, sysmonActionPowerLoss));
-		}
-		break;
-	case sysmonActionPowerRestored:
-		if(sendPowerSMS(1))
-		{
-			mPowerFlag = false;
-			diag_printf("SYSMON: SMS sent\n");
-		}
-		else
-		{
-			QAction(new s_action(plainAction, sysmonActionPowerRestored));
-		}
-		break;
-
-	case sysmonActionSMS:
-		handleSMSlist();
+	default:
+		diag_printf("Could not handle action: %d\n", action);
 		break;
 	}
 
@@ -278,47 +121,7 @@ cyg_bool cSysMon::handleEvent(s_event* evt)
 	{
 		diag_printf("SYSMON: Input %d : %s\n", evt->portNumber, evt->state?"close":"open");
 
-		if(evt->portNumber == POWER_IN_PORT)
-		{
-			diag_printf("SYSMON: Power Changed\n");
-			//only queue one alarm action until it has been handled
-			if(!mPowerFlag)
-			{
-				mPowerFlag = true;
-				if(evt->state)
-					QAction(new s_action(plainAction, sysmonActionPowerLoss));
-				else
-					QAction(new s_action(plainAction, sysmonActionPowerRestored));
-			}
-			return true;
-		}
 
-		if(evt->portNumber == ALARM_SET_PORT)
-		{
-			if(!mAlarmDisEnable)
-			{
-				diag_printf("SYSMON: ALARM SET/RESET\n");
-				mAlarmDisEnable = true;
-				return false;
-			}
-		}
-		else
-		{
-			time_t now = cRTC::get()->timeNow();
-			struct tm* info = localtime(&now);
-			diag_printf("SYSMON: [%d:%d]\n", info->tm_wday, info->tm_hour);
-
-			if(!mAlarmTimer)
-			{
-				diag_printf("SYSMON: Setting Alarm\n");
-				mAlarmAck = false;
-				QAction(new s_action(plainAction, sysmonActionAlarm));
-			}
-			else
-			{
-				diag_printf("SYSMON: Alarm was handled less than 5 min. ago\n");
-			}
-		}
 	}
 
 	return true;
@@ -363,33 +166,9 @@ void cSysMon::handleSMSlist()
 
 void cSysMon::handleSMScommand(cMdmReadSMS::sSMS * sms)
 {
-	diag_printf("SYSMON: Handling command %s\n", sms->mText);
+	diag_printf("SYSMON: Handling SMS command %s\n", sms->mText);
 	//diag_dump_buf((void*)command, strlen(command));
-	if(!strcmp(sms->mText,"Disable\r"))
-	{
-		diag_printf("SYSMON: Disable alarm\n");
-		mAlarmEnabled = false;
-	}
-	else if(!strcmp(sms->mText,"Enable\r"))
-	{
-		diag_printf("SYSMON: Enable alarm\n");
-		mAlarmEnabled = true;
-	}
-	else if(!strcmp(sms->mText,"Status\r"))
-	{
-		char txtMsg[160];
-		diag_printf("SYSMON: Reply Status\n");
 
-		sprintf(txtMsg, "%s\n\nPIR: %s\nMiddle Door: %s\nReception Door: %s\nEmployee Door: %s\n", mAlarmEnabled?"ARMED":"DISARMED"
-						, cInput::get()->getPortState(0)?"HIGH":"LOW"
-						, cInput::get()->getPortState(1)?"CLOSED":"OPEN"
-						, cInput::get()->getPortState(2)?"OPEN":"CLOSED"
-						, cInput::get()->getPortState(3)?"OPEN":"CLOSED"
-				);
-
-		diag_printf("SYSMON: SMS %s\n%s\n", sms->mNumber, txtMsg);
-		cModem::get()->sendSMS(sms->mNumber, txtMsg);
-	}
 
 }
 
@@ -413,18 +192,6 @@ bool cSysMon::placeMissedCall()
 	else
 	{
 		diag_printf("SYSMON: missed call failed\n");
-
-		if(mUploadFailCnt++ > 2)
-		{
-			mUploadFailCnt = 0;
-
-			cLED::get()->indicate(cLED::waitNetwork);
-
-			diag_printf("SYSMON: Reset modem\n");
-			cModem::get()->power(0);
-			cyg_thread_delay(10000);
-
-		}
 	}
 
 	return status;
@@ -476,12 +243,6 @@ bool cSysMon::sendPowerSMS(cyg_bool state)
 	}while(!TXdone && retryCnt--);
 
 	return TXstat;
-}
-
-
-void cSysMon::acknowledgeAlarm()
-{
-	mAlarmAck = true;
 }
 
 cLED::eLEDstatus cSysMon::registerModem()

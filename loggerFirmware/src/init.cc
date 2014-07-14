@@ -15,6 +15,7 @@
 #include "input_port.h"
 #include "MCP_rtc.h"
 #include "sys_mon.h"
+#include "picaxe_lcd.h"
 
 cInit * cInit::__instance = NULL;
 
@@ -93,20 +94,17 @@ void cInit::init_system()
 	create_io();
 
 	while(!cNVM::get()->isReady())
-		{
-			diag_printf("Wait nvm...\n");
-			cyg_thread_delay(10);
-		}
+	{
+		diag_printf("Wait nvm...\n");
+		cyg_thread_delay(10);
+	}
 
 	cyg_uint32 inputPortNumbers[] =
 	{
-		PORTD_INPUT( 9),
-		PORTD_INPUT( 8),
-		PORTB_INPUT( 1),
-		PORTB_INPUT( 0),
-		PORTC_INPUT( 5),
+			PORTD_INPUT( 9),
+			PORTD_INPUT( 8),
 	};
-	cInput::init(inputPortNumbers, 5);
+	cInput::init(inputPortNumbers, 2);
 
 	cLED::ledPins_s ledPinNumbers[] = //no pin is 0xFF
 	{
@@ -119,6 +117,8 @@ void cInit::init_system()
 
 	cSysMon::init();
 	cInput::get()->setQueue(cSysMon::get());
+
+	cPICAXEserialLCD::init(SERIAL_CONFIG_DEVICE);
 }
 
 void cInit::setup_peripherals()
@@ -158,6 +158,10 @@ void cInit::create_io()
 	set_pinL(SIMCOM_PWR_KEY);
 	setup_pin(MDM_PWR_OFF);
 	set_pinL(MDM_PWR_OFF);
+
+    //config
+    setup_pin(SERIAL_CONFIG_RX);
+    setup_pin(SERIAL_CONFIG_TX);
 }
 
 void cInit::enable_clocks()
@@ -184,6 +188,7 @@ void cInit::enable_clocks()
                 CYGHWR_HAL_STM32_RCC_APB1ENR_TIM3  |
                 CYGHWR_HAL_STM32_RCC_APB1ENR_UART2 |
                 CYGHWR_HAL_STM32_RCC_APB1ENR_UART3 |
+                CYGHWR_HAL_STM32_RCC_APB1ENR_UART4 |
                 CYGHWR_HAL_STM32_RCC_APB1ENR_I2C1
                 ;
         HAL_WRITE_UINT32(CYGHWR_HAL_STM32_RCC + CYGHWR_HAL_STM32_RCC_APB1ENR, reg32);
@@ -200,11 +205,4 @@ void cInit::enable_clocks()
 
 void cInit::create_serial()
 {
-
-	// RS485 UART
-//	SerRS485 = new cSerial(SERIAL_RS485_DEVICE,
-//			CYGNUM_SERIAL_BAUD_115200,
-//			CYGNUM_SERIAL_STOP_1,
-//			CYGNUM_SERIAL_PARITY_NONE,
-//			CYGNUM_SERIAL_WORD_LENGTH_8);
 }

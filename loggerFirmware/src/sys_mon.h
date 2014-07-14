@@ -11,10 +11,7 @@
 #include "watchdog.h"
 #include "led.h"
 
-#define POWER_IN_PORT 4
-#define ALARM_SET_PORT 99
-
-class cSysMon : public cDebug, public cAlarmCallback, public cActionQueue
+class cSysMon : public cDebug, public cActionQueue
 {
 public:
 	enum e_sysmon_action
@@ -45,32 +42,11 @@ private:
 
 	cyg_mutex_t mMonitorMutex;
 
-	cyg_bool mPowerFlag;
-
-	time_t mAlarmTimer;
-	cyg_bool mAlarmEnabled;
-	cyg_bool mAlarmAck;
-	cyg_uint8 mAlarmAckCnt;
-	cyg_bool mAlarmDisEnable;
-	cyg_uint8 mWalkOutTime;
-
-	cyg_bool mAlarmFrameState;
-
-	cyg_bool mTestMissedCallFlag;
-
-	cyg_uint32 mUploadFailCnt;
-
-
 	wdKicker* mWatchDog;
 
 	cyg_bool monitor();
 	cyg_bool handleAction(cyg_addrword_t action);
 	cyg_bool handleEvent(s_event* evt);
-
-	void armDisarm();
-	void updateAlarmState();
-	void arm();
-	void disarm();
 
 	cLED::eLEDstatus registerModem();
 	cLED::eLEDstatus checkSIM();
@@ -87,8 +63,6 @@ public:
 
 	void showStat();
 	time_t getLastSync();
-
-	void acknowledgeAlarm();
 
 	static void setPowerStat(cTerm & term, int argc,char * argv[]);
 
