@@ -150,29 +150,29 @@ void cTempMon::setSample(cyg_uint8 port, float val)
 		return;
 
 	float prevSample = ANsamples[port].get().value;
-	float range = cNVM::get()->getSampleRange(port);
-
-	if((prevSample - range) > val || val > (prevSample + range))
-	{
-		ANsamples[port].set(val);
-
-		cEvent e(port, val, cRTC::get()->timeNow());
-		e.showEvent();
-		cLog::get()->logEvent(&e);
-
-	}
+//TODO	float range = cNVM::get()->getSampleRange(port);
+//
+//	if((prevSample - range) > val || val > (prevSample + range))
+//	{
+//		ANsamples[port].set(val);
+//
+//		cEvent e(port, val, cRTC::get()->timeNow());
+//		e.showEvent();
+//		cLog::get()->logEvent(&e);
+//
+//	}
 }
 
 cyg_bool cTempMon::isCritical(cyg_uint8 port, float val)
 {
-	float upper = cNVM::get()->getUpperLimit(port);
-	float lower = cNVM::get()->getLowerLimit(port);
-
-	if((upper < val) || (val < lower) )
-	{
-		printf("Port%d: %0.1f Critical %0.1f < temp < %0.1f\n", port, val, upper, lower);
-		return true;
-	}
+//TODO	float upper = cNVM::get()->getUpperLimit(port);
+//	float lower = cNVM::get()->getLowerLimit(port);
+//
+//	if((upper < val) || (val < lower) )
+//	{
+//		printf("Port%d: %0.1f Critical %0.1f < temp < %0.1f\n", port, val, upper, lower);
+//		return true;
+//	}
 
 	return false;
 }

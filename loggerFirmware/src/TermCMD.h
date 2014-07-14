@@ -2,10 +2,12 @@
 #define TERMCMD_H_
 #include <cyg/hal/hal_tables.h>
 #include <cyg/kernel/kapi.h>
+#include <cyg/kernel/diag.h>
+
 #include "debug.h"
 #include "term.h"
 
-class TermCMD
+class TermCMD : cDebug
 {
 
 	typedef void (*func_t)(cTerm & t,int argc,char *argv[]);
@@ -25,68 +27,31 @@ public:
 	static void help(cTerm & t,int argc,char *argv[]);
 };
 
-class systemMon
-{
-public:
-	static void sync(cTerm & term, int argc,char * argv[]);
-	static void syncDone(cTerm & term, int argc,char * argv[]);
-	static void stat(cTerm & term, int argc,char * argv[]);
-	static void setPeriod(cTerm & term, int argc,char * argv[]);
-	static void setPowerStat(cTerm & term, int argc,char * argv[]);
-};
-
-
-class logEvent
-{
-public:
-	static void log(cTerm & term, int argc,char * argv[]);
-	static void logDisc(cTerm & term, int argc,char * argv[]);
-	static void ack(cTerm & term, int argc,char * argv[]);
-	static void showAll(cTerm & term, int argc,char * argv[]);
-};
-
-class MCP
-{
-public:
-	static void sync(cTerm & term, int argc,char * argv[]);
-	static void set(cTerm & term, int argc,char * argv[]);
-	static void powerChange(cTerm & term, int argc,char * argv[]);
-};
-
-class inputs
-{
-public:
-	static void discrete(cTerm & term, int argc,char * argv[]);
-	static void analog(cTerm & term, int argc,char * argv[]);
-	static void showM(cTerm & term, int argc,char * argv[]);
-	static void incHobbs(cTerm & term, int argc,char * argv[]);
-	static void showHobbs(cTerm & term, int argc,char * argv[]);
-};
-
-class modem
-{
-public:
-	static void ATcmd(cTerm & term, int argc,char * argv[]);
-	static void cmd(cTerm & term, int argc,char * argv[]);
-	static void status(cTerm & term, int argc,char * argv[]);
-	static void reset(cTerm & term, int argc,char * argv[]);
-	static void fixBaud(cTerm & term, int argc,char * argv[]);
-};
-
 class System : cDebug
 {
 public:
 	static void handle(cTerm & t,int argc,char *argv[]);
-	static void flashCmd(cTerm & t,int argc,char *argv[]);
 	static void setDebugLvl(cTerm & t,int argc,char *argv[]);
 
 	static void nvmBuff(cTerm & t,int argc,char *argv[]);
-	static void config(cTerm & t,int argc,char *argv[]);
-	static void reset(cTerm & t,int argc,char *argv[]);
+	static void threadInfo(cTerm & t,int argc,char *argv[]);
+	static void ramUsage(cTerm & t,int argc,char *argv[]);
+	static void version(cTerm & t,int argc,char *argv[]);
+	static void serial(cTerm & t,int argc,char *argv[]);
 
-	static void setUpperLimit(cTerm & t,int argc,char *argv[]);
-	static void setLowerLimit(cTerm & t,int argc,char *argv[]);
+	static void eCOStime(cTerm & t,int argc,char *argv[]);
+	static void clear(cTerm & t,int argc,char *argv[]);
+	static void reset(cTerm & t, int argc, char *argv[]);
+
 };
 
-#endif /* TERMCMD_H_ */
+class SpiFlash
+{
+public:
+    static void readCmd(cTerm & t,int argc,char *argv[]);
+    static void writeCmd(cTerm & t,int argc,char *argv[]);
+    static void eraseCmd(cTerm & t,int argc,char *argv[]);
+};
 
+
+#endif /* TERMCMD_H_ */

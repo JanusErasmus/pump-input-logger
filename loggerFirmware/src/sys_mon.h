@@ -5,14 +5,28 @@
 #include <time.h>
 
 #include "definitions.h"
+#include "action_queue.h"
 #include "modem.h"
-#include "log.h"
 #include "debug.h"
-#include "rmmdict.h"
 #include "watchdog.h"
+#include "led.h"
 
-class cSysMon : public cDebug
+#define POWER_IN_PORT 4
+#define ALARM_SET_PORT 99
+
+class cSysMon : public cDebug, public cAlarmCallback, public cActionQueue
 {
+public:
+	enum e_sysmon_action
+	{
+		sysmonActionTest,
+		sysmonActionPowerLoss,
+		sysmonActionPowerRestored,
+		sysmonActionAlarm,
+		sysmonActionSMS
+	};
+
+private:
 	cSysMon();
 	static cSysMon* _instance;
 
@@ -24,61 +38,60 @@ class cSysMon : public cDebug
 	cyg_mutex_t mWaitMutex;
 	cyg_cond_t mWaitCond;
 
-	cyg_mutex_t mEventMutex;
-	cyg_cond_t mEventCond;
-	cEvent mEvent;
-
 	cyg_uint8 mStack[SYSMON_STACK_SIZE];
 	cyg_thread mThread;
 	cyg_handle_t mThreadHandle;
 	static void sys_thread_func(cyg_addrword_t arg);
 
-	cyg_mutex_t mSessionMutex;
+	cyg_mutex_t mMonitorMutex;
 
-	time_t mLastSession;
+	cyg_bool mPowerFlag;
+
+	time_t mAlarmTimer;
+	cyg_bool mAlarmEnabled;
+	cyg_bool mAlarmAck;
+	cyg_uint8 mAlarmAckCnt;
+	cyg_bool mAlarmDisEnable;
+	cyg_uint8 mWalkOutTime;
+
+	cyg_bool mAlarmFrameState;
+
+	cyg_bool mTestMissedCallFlag;
+
 	cyg_uint32 mUploadFailCnt;
 
-	bool mPowerStat;
 
 	wdKicker* mWatchDog;
 
-	void monitor();
-	void checkInputState();
-	void logInputStateNow();
+	cyg_bool monitor();
+	cyg_bool handleAction(cyg_addrword_t action);
+	cyg_bool handleEvent(s_event* evt);
 
-	cyg_bool uploadLogs(cyg_uint32 retryCount);
-	cyg_uint8 doSession();
-	cyg_uint8 attachModem();
-	cyg_uint8 doTransfer();
+	void armDisarm();
+	void updateAlarmState();
+	void arm();
+	void disarm();
 
-	bool insertCfg(cyg_uint16 &idx, cyg_uint8* buff,  cyg_uint16 buffLen);
-	bool insertTime(cyg_uint8 port, cyg_uint16 &idx, cyg_uint8* buff,  cyg_uint16 buffLen);
-	bool insertEvent(cEvent* e, cyg_uint16 &idx, cyg_uint8* buff,  cyg_uint16 buffLen);
-	bool insertPwrChange(cyg_uint16 &idx, cyg_uint8* buff,  cyg_uint16 buffLen);
-	bool waitReply(cyg_uint8* buff, cyg_uint16 len);
-	bool validFrame(cyg_uint8* buff, cyg_uint16 len);
-	bool handleMessage(uKMsg* m);
-	bool isMyMessage(uKMsg* m);
-	bool handleSetTime(uKMsg* m);
-	bool handleSetHobbs(uKMsg* m);
-	bool handleSetCFG(uKMsg* m);
+	cLED::eLEDstatus registerModem();
+	cLED::eLEDstatus checkSIM();
 
-    void printMessage(uKMsg* m);
-    void shutDownModem();
+	bool sendPowerSMS(cyg_bool state);
+	bool placeMissedCall();
 
+	void handleSMSlist();
+	void handleSMScommand(cMdmReadSMS::sSMS * sms);
 
 public:
 	static void init();
 	static cSysMon* get();
 
-	void setPowerStat(bool stat);
-	void setUploadDone(bool stat = 1);
-	void logEvent(cEvent *e);
-
 	void showStat();
 	time_t getLastSync();
 
-	void dataReceived(cyg_uint8* buff, cyg_uint16 len);
+	void acknowledgeAlarm();
+
+	static void setPowerStat(cTerm & term, int argc,char * argv[]);
+
 	virtual ~cSysMon();
 };
 

@@ -4,16 +4,8 @@
 
 class cMdm_cmd
 {
+	cyg_sem_t mWaitSema;
 
-	enum eMdm_response
-	{
-		ok,
-		err,
-		unknown
-	};
-
-	cyg_mutex_t mWaitMutex;
-	cyg_cond_t mWaitCond;
 	cyg_mutex_t mBuffMutex;
 
 	char* mCMD;
@@ -21,15 +13,24 @@ class cMdm_cmd
 
 protected:
 
-	cyg_uint8 mRxBuff[256];
+	enum eMdm_response
+		{
+			ok,
+			err,
+			unknown
+		};
+
+	cyg_mutex_t mDataHandleMutex;
+	cyg_cond_t mDataHandleCond;
+
+	cyg_uint8* mRxBuff;//[512];
 	cyg_uint8 mRxLen;
-	bool replied;
 
 	cMdm_cmd(const char * fmt,...);
 
 	cyg_uint8* getCMD();
 
-	eMdm_response getResponse();
+	eMdm_response getResponse(const char* response);
 	virtual bool handleResponse(const char* response);
 
 	bool parseValue(const char* buff, char delimiter, int* paramC, char paramV[][32]);
@@ -55,8 +56,6 @@ public:
 	cMdmGetID();
 
 	char* getID(){ return id; };
-
-
 };
 
 class cMdmSetEcho : public cMdm_cmd
@@ -65,6 +64,48 @@ public:
 	cMdmSetEcho(bool stat);
 };
 
+class cMdmGetPBCount : public cMdm_cmd
+{
+	int mCount;
+	int mSize;
+
+	bool handleResponse(const char* response);
+public:
+	cMdmGetPBCount();
+
+	int count(){ return mCount; };
+	int size(){ return mSize; };
+
+};
+
+class cMdmGetPB : public cMdm_cmd
+{
+public:
+	struct s_entry
+	{
+		char number[40];
+		char name[16];
+	};
+
+private:
+	s_entry* mList;
+	int mCurrIdx;
+	int mCount;
+
+	bool handleResponse(const char* response);
+public:
+	cMdmGetPB(s_entry* list, int count);
+
+};
+
+class cMdmUpdatePB : public cMdm_cmd
+{
+
+public:
+	cMdmUpdatePB(int idx, const char* name, const char* number);
+	cMdmUpdatePB(int idx);
+
+};
 
 class cMdmSIMinserted : public cMdm_cmd
 {
@@ -107,8 +148,6 @@ public:
 
 class cMdmEnterPIN : public cMdm_cmd
 {
-	bool mInserted;
-
 public:
 	cMdmEnterPIN(char* pin);
 	cMdmEnterPIN(char* puk, char* pin);
@@ -141,6 +180,17 @@ public:
 
 };
 
+class cMdmCallReady : public cMdm_cmd
+{
+	bool mStat;
+
+	bool handleResponse(const char* response);
+public:
+	cMdmCallReady();
+
+	bool stat(){ return mStat; };
+};
+
 class cMdmNetRegistration : public cMdm_cmd
 {
 	bool mStat;
@@ -150,8 +200,75 @@ public:
 	cMdmNetRegistration();
 
 	bool stat(){ return mStat; };
+};
+
+class cMdmPlaceCall : public cMdm_cmd
+{
+public:
+	cMdmPlaceCall(const char* number);
+	cMdmPlaceCall(int pbIndex);
+
+};
 
 
+class cMdmEndCall : public cMdm_cmd
+{
+public:
+	cMdmEndCall();
+};
+
+class cMdmSendSMS : public cMdm_cmd
+{
+public:
+	cMdmSendSMS();
+	bool send(const char* number, const char* text);
+};
+
+class cMdmReadSMS : public cMdm_cmd
+{
+public:
+	struct sSMS
+	{
+		cyg_uint8 mIdx;
+		char mNumber[13];
+		char mName[16];
+		char mTime[22];
+		char mText[160];
+
+		sSMS(cyg_uint8 idx, const char* number, const char* name , const char* time);
+		void setText(const char* text);
+		void show();
+
+		~sSMS(){};
+	};
+
+private:
+	sSMS ** mSMSlist;
+	int listIdx;
+	bool smsString;
+
+	bool handleResponse(const char* response);
+
+public:
+	cMdmReadSMS(sSMS ** list);
+};
+
+class cMdmDeleteSMS : public cMdm_cmd
+{
+public:
+	cMdmDeleteSMS();
+};
+
+class cMdmUSSD : public cMdm_cmd
+{
+public:
+	cMdmUSSD(const char* ussd);
+};
+
+class cMdmUSSDoff : public cMdm_cmd
+{
+public:
+	cMdmUSSDoff();
 };
 
 

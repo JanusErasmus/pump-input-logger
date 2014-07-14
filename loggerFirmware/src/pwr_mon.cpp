@@ -1,5 +1,4 @@
 #include "pwr_mon.h"
-#include "hobbs_timer.h"
 #include "log.h"
 #include "MCP_rtc.h"
 #include "sys_mon.h"
@@ -95,15 +94,7 @@ void cPwrMon::handleDSR(cyg_vector_t vector,cyg_uint32 count,cyg_addrword_t data
 
 		bool stat = _instance->getPinStat(input);
 		diag_printf("Input %d : %s\n", input, stat?"ON":"OFF");
-		if(cHobbsTimer::get())
-		{
-			cHobbsTimer::get()->setPortState(input, stat);
-		}
 
-		if(cSysMon::get() && cRTC::get())
-		{
-			cSysMon::get()->logEvent(new cEvent(input, (cyg_uint8)stat, cRTC::get()->timeNow()));
-		}
 
 	}
 	break;

@@ -28,9 +28,6 @@ private:
     static void term_thread_func(cyg_addrword_t arg);
     cTerm(char * dev,cyg_uint32 b_size,const char * const prompt_str);
 
-    //VT100
-    bool isVT100();
-
 public:
     static void init(char * dev,cyg_uint32 b_size,const char * const prompt_str);
     cTerm& operator<<(void *);

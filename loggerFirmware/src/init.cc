@@ -2,23 +2,19 @@
 #include <cyg/hal/hal_diag.h>
 #include <cyg/kernel/kapi.h>
 #include <stdlib.h>
-#include <stdio.h>
+
+//#include <cyg/io/flash_spi_dev.h> //flash device on SPI
+//#include <cyg/io/flash_spi.h> //flash device on SPI
 
 #include "definitions.h"
+#include "version.h"
+#include "nvm.h"
 #include "init.h"
 #include "term.h"
-#include "spi_flash.h"
-#include "spi_dev.h"
-#include "nvm.h"
-#include "MCP_rtc.h"
 #include "led.h"
-#include "pwr_mon.h"
-#include "temp_mon.h"
-#include "modem.h"
-#include "log.h"
-#include "hobbs_timer.h"
+#include "input_port.h"
+#include "MCP_rtc.h"
 #include "sys_mon.h"
-#include "config.h"
 
 cInit * cInit::__instance = NULL;
 
@@ -44,8 +40,6 @@ void cInit::init()
  */
 cInit::cInit()
 {
-    diag_printf("Init class created ...\n");
-
     cyg_thread_create(INIT_PRIOR,
                       cInit::init_thread_func,
                       (cyg_addrword_t)this,
@@ -55,6 +49,7 @@ cInit::cInit()
                       &mThreadHandle,
                       &mThread);
     cyg_thread_resume(mThreadHandle);
+
 }
 /**ty
  * The main thread function for the system. The whole show
@@ -64,31 +59,25 @@ cInit::cInit()
  */
 void cInit::init_thread_func(cyg_addrword_t arg)
 {
-	diag_printf("Init thread\n");
 	cInit * i = (cInit *)arg;
 
 	i->init_system();
-
 
 	cyg_thread_delay(50);
 
 
 	// Initialise the Terminal
-	cTerm::init((char *)"/dev/ttydiag",128,"inputMon>>");
+	cTerm::init((char *)"/dev/ttydiag",128,"inputLogger>>");
 
-	for (;;)
-	{
-		cLED::get()->animate();
 
-//		float buff[4];
-//		diag_printf("Sampling:\n");
-//		cTempMon::get()->getSample(buff);
-//		for(int k = 0; k < AN_IN_CNT; k++)
-//		{
-//			printf("buff[%d]: %.4f\n", k, buff[k]);
-//		}
-//		cyg_thread_delay(10000);
-	}
+	//Enable alarm interrupts once system has started
+	cInput::get()->start();
+
+//	for (;;)
+//	{
+//
+//
+//	}
 }
 
 
@@ -102,27 +91,34 @@ void cInit::init_system()
 	setup_peripherals();
 	create_serial();
 	create_io();
-	create_spi_devs();
 
-	cLED::init();
-	cNVM::init(SECTOR_DATA, SECTOR_STATUS);
+	while(!cNVM::get()->isReady())
+		{
+			diag_printf("Wait nvm...\n");
+			cyg_thread_delay(10);
+		}
+
+	cyg_uint32 inputPortNumbers[] =
+	{
+		PORTD_INPUT( 9),
+		PORTD_INPUT( 8),
+		PORTB_INPUT( 1),
+		PORTB_INPUT( 0),
+		PORTC_INPUT( 5),
+	};
+	cInput::init(inputPortNumbers, 5);
+
+	cLED::ledPins_s ledPinNumbers[] = //no pin is 0xFF
+	{
+			{ PORTE_INPUT(2), PORTE_INPUT(3) },
+	};
+
+	cLED::init(ledPinNumbers, 1);
+
 	cRTC::init();
-	cPwrMon::init();
-	cModem::init(SERIAL_SIMCOM_DEVICE);
-	cConfig::init(SERIAL_CONFIG_DEVICE);
 
-	cLog::init(SECTOR_LOGS);
-	while(!cLog::get());
-
-	cHobbsTimer::init(SECTOR_HOBBS, 6); //set to 6 minutes or 1/10 of an hour
-	while(!cHobbsTimer::get());
-
-	cLED::get()->start();
-	cTempMon::init();
 	cSysMon::init();
-
-	cHobbsTimer::get()->start();
-
+	cInput::get()->setQueue(cSysMon::get());
 }
 
 void cInit::setup_peripherals()
@@ -131,7 +127,8 @@ void cInit::setup_peripherals()
 
     // Make sure SPI3 and UART2 is not remapped. Remap TIM1 to PE. Disable JTAG and SW debug
     HAL_READ_UINT32(CYGHWR_HAL_STM32_AFIO+CYGHWR_HAL_STM32_AFIO_MAPR, reg32);
-    reg32 &=~ ( CYGHWR_HAL_STM32_AFIO_MAPR_URT2_RMP |
+    reg32 &=~ ( CYGHWR_HAL_STM32_AFIO_MAPR_SPI3_RMP |
+                CYGHWR_HAL_STM32_AFIO_MAPR_URT2_RMP |
                 CYGHWR_HAL_STM32_AFIO_MAPR_SWJ_MASK |
                 CYGHWR_HAL_STM32_AFIO_MAPR_TIM1_FL_RMP);
     reg32 |= CYGHWR_HAL_STM32_AFIO_MAPR_SWJ_SWDPDIS;
@@ -145,31 +142,13 @@ void cInit::setup_peripherals()
 
 }
 
-void cInit::create_spi_devs()
-{
-    // Initialize all the SPI devices.
-    SpiFlash::init(&stm32_flash_dev);
-}
-
 void cInit::create_io()
 {
-	//setup LED
-	setup_pin(LED_R);
-	setup_pin(LED_G);
+	// Setup the other GPIOs the way we are going to use them.
 
 	//setup I2C
 	setup_pin(I2C_SCL);
 	setup_pin(I2C_SDA);
-
-	//setup Discrete in
-	setup_pin(DISC_IN1);
-	setup_pin(DISC_IN2);
-
-	//setup Analog in
-	setup_pin(ANA_IN1);
-	setup_pin(ANA_IN2);
-	setup_pin(ANA_IN3);
-	setup_pin(ANA_IN4);
 
 	//modem
 	setup_pin(SERIAL_SIMCOM_RX);
@@ -179,51 +158,53 @@ void cInit::create_io()
 	set_pinL(SIMCOM_PWR_KEY);
 	setup_pin(MDM_PWR_OFF);
 	set_pinL(MDM_PWR_OFF);
-
-	//config
-	setup_pin(SERIAL_CONFIG_RX);
-	setup_pin(SERIAL_CONFIG_TX);
 }
 
 void cInit::enable_clocks()
 {
-	// Initialize the external clocks. Perform all resets to get everything in the right state.
+    // Initialize the external clocks. Perform all resets to get everything in the right state.
 
-	// Here we setup the peripheral clocks. Were a pin is shared by two peripherals, we also make sure that only the one we're going to use is activated.
-	cyg_uint32 reg32;
-	// Only activate SPI1, UART1, ADC1, IOPA, IOPB, IOPC, IOPD, IOPE and AFIO clocks on APB2
-	reg32 = CYGHWR_HAL_STM32_RCC_APB2ENR_SPI1  |
-			CYGHWR_HAL_STM32_RCC_APB2ENR_UART1 |
-			CYGHWR_HAL_STM32_RCC_APB2ENR_ADC1  |
-			CYGHWR_HAL_STM32_RCC_APB2ENR_IOPA  |
-			CYGHWR_HAL_STM32_RCC_APB2ENR_IOPB  |
-			CYGHWR_HAL_STM32_RCC_APB2ENR_IOPC  |
-			CYGHWR_HAL_STM32_RCC_APB2ENR_IOPD  |
-			CYGHWR_HAL_STM32_RCC_APB2ENR_IOPE  |
-			CYGHWR_HAL_STM32_RCC_APB2ENR_AFIO;
-	HAL_WRITE_UINT32(CYGHWR_HAL_STM32_RCC+CYGHWR_HAL_STM32_RCC_APB2ENR, reg32);
+    // Here we setup the peripheral clocks. Were a pin is shared by two peripherals, we also make sure that only the one we're going to use is activated.
+         cyg_uint32 reg32;
+        // Only activate SPI1, UART1, ADC1, IOPA, IOPB, IOPC, IOPD, IOPE and AFIO clocks on APB2
+        reg32 = CYGHWR_HAL_STM32_RCC_APB2ENR_SPI1  |
+                CYGHWR_HAL_STM32_RCC_APB2ENR_UART1 |
+                CYGHWR_HAL_STM32_RCC_APB2ENR_ADC1  |
+                CYGHWR_HAL_STM32_RCC_APB2ENR_IOPA  |
+                CYGHWR_HAL_STM32_RCC_APB2ENR_IOPB  |
+                CYGHWR_HAL_STM32_RCC_APB2ENR_IOPC  |
+                CYGHWR_HAL_STM32_RCC_APB2ENR_IOPD  |
+                CYGHWR_HAL_STM32_RCC_APB2ENR_IOPE  |
+                CYGHWR_HAL_STM32_RCC_APB2ENR_AFIO;
+        HAL_WRITE_UINT32(CYGHWR_HAL_STM32_RCC+CYGHWR_HAL_STM32_RCC_APB2ENR, reg32);
 
-	// Only activate SPI3, SPI2, UART2 and UART3 clocks on APB1
-	reg32 = //CYGHWR_HAL_STM32_RCC_APB1ENR_SPI3  |
-			//CYGHWR_HAL_STM32_RCC_APB1ENR_SPI2  |
-			//CYGHWR_HAL_STM32_RCC_APB1ENR_TIM3  |
-			CYGHWR_HAL_STM32_RCC_APB1ENR_UART2	|
-			//CYGHWR_HAL_STM32_RCC_APB1ENR_UART3	|
-			CYGHWR_HAL_STM32_RCC_APB1ENR_UART4	|
-    		CYGHWR_HAL_STM32_RCC_APB1ENR_I2C1;
-	HAL_WRITE_UINT32(CYGHWR_HAL_STM32_RCC + CYGHWR_HAL_STM32_RCC_APB1ENR, reg32);
+        // Only activate SPI3, SPI2, UART2 and UART3 clocks on APB1
+        reg32 = CYGHWR_HAL_STM32_RCC_APB1ENR_SPI3  |
+                CYGHWR_HAL_STM32_RCC_APB1ENR_SPI2  |
+                CYGHWR_HAL_STM32_RCC_APB1ENR_TIM3  |
+                CYGHWR_HAL_STM32_RCC_APB1ENR_UART2 |
+                CYGHWR_HAL_STM32_RCC_APB1ENR_UART3 |
+                CYGHWR_HAL_STM32_RCC_APB1ENR_I2C1
+                ;
+        HAL_WRITE_UINT32(CYGHWR_HAL_STM32_RCC + CYGHWR_HAL_STM32_RCC_APB1ENR, reg32);
 
-	// Disable ETH, USB and embedded flash FLITF on AHB
-	HAL_READ_UINT32(CYGHWR_HAL_STM32_RCC+CYGHWR_HAL_STM32_RCC_AHBENR, reg32);
-	reg32 &=~ ( CYGHWR_HAL_STM32_RCC_AHBENR_ETHMACRX |
-			CYGHWR_HAL_STM32_RCC_AHBENR_ETHMACTX |
-			CYGHWR_HAL_STM32_RCC_AHBENR_ETHMAC   |
-			CYGHWR_HAL_STM32_RCC_AHBENR_OTGFS    |
-			CYGHWR_HAL_STM32_RCC_AHBENR_FLITF );
-	HAL_WRITE_UINT32(CYGHWR_HAL_STM32_RCC+CYGHWR_HAL_STM32_RCC_AHBENR, reg32);
-
+        // Disable ETH, USB and embedded flash FLITF on AHB
+           HAL_READ_UINT32(CYGHWR_HAL_STM32_RCC+CYGHWR_HAL_STM32_RCC_AHBENR, reg32);
+           reg32 &=~ ( CYGHWR_HAL_STM32_RCC_AHBENR_ETHMACRX |
+                       CYGHWR_HAL_STM32_RCC_AHBENR_ETHMACTX |
+                       CYGHWR_HAL_STM32_RCC_AHBENR_ETHMAC   |
+                       CYGHWR_HAL_STM32_RCC_AHBENR_OTGFS    |
+                       CYGHWR_HAL_STM32_RCC_AHBENR_FLITF );
+           HAL_WRITE_UINT32(CYGHWR_HAL_STM32_RCC+CYGHWR_HAL_STM32_RCC_AHBENR, reg32);
 }
 
 void cInit::create_serial()
 {
+
+	// RS485 UART
+//	SerRS485 = new cSerial(SERIAL_RS485_DEVICE,
+//			CYGNUM_SERIAL_BAUD_115200,
+//			CYGNUM_SERIAL_STOP_1,
+//			CYGNUM_SERIAL_PARITY_NONE,
+//			CYGNUM_SERIAL_WORD_LENGTH_8);
 }

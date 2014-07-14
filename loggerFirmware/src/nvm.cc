@@ -1,36 +1,51 @@
 #include <stdio.h>
+#include <cyg/io/flash.h>
+#include <stdlib.h>
 
+#include "spi_dev.h"
 #include "nvm.h"
-#include "definitions.h"
-#include "spi_flash.h"
 #include "crc.h"
-#include "version.h"
+#include "led.h"
 
-cNVM * cNVM::__instance = 0;
+cNVM * cNVM::__instance = NULL;
 
-void cNVM::init(cyg_uint32 dataAddress, cyg_uint32 statusAddress)
-{
-	if(__instance == 0)
-	{
-		__instance = new cNVM(dataAddress, statusAddress);
-	}
-}
 
 cNVM * cNVM::get()
 {
+   if(__instance == NULL)
+   {
+      __instance = new cNVM();
+   }
    return __instance;
 }
 
-
-cNVM::cNVM(cyg_uint32 dataAddress, cyg_uint32 statusAddress)
+cNVM::cNVM() : mReadyFlag(false)
 {
-	mNVMDataAddress = dataAddress;
-	mNVMStatusAddress = statusAddress;
+
+	cyg_flash_info_t info;
+	cyg_flash_init(0);
+	int ret = cyg_flash_get_info(0,&info);
+	if(!ret)
+	{
+		diag_printf("SPI_FLASH: Device:\n");
+		diag_printf(" - Block:\n");
+		diag_printf("   - info's: %d\n",info.num_block_infos);
+		diag_printf("   - count : %d\n",info.block_info[0].blocks);
+		diag_printf("   - size  : 0x%8.0X\n",info.block_info[0].block_size);
+		diag_printf(" - START 0x%8.0X \n",info.start);
+		diag_printf(" - END   0x%8.0X \n",info.end);
+	}
+	else
+	{
+
+		diag_printf("cyg_flash_info return value = %d\n", ret);
+		diag_printf("Could not initialize SPI flash\n");
+	}
+
+	spi_dev_global_unprotect();
 
 	sNvmData temp_data;
-
-	SpiFlash::get()->ReadSpi(mNVMDataAddress,(cyg_uint8 *)&temp_data,sizeof(sNvmData));
-	if(check_crc(&temp_data))
+	if(readNVM(&temp_data))
 	{
 		diag_printf("NVM CRC OK\n");
 		mNvmData = temp_data;
@@ -42,51 +57,49 @@ cNVM::cNVM(cyg_uint32 dataAddress, cyg_uint32 statusAddress)
 	}
 
 	sDeviceStat temp_stat;
-
-	SpiFlash::get()->ReadSpi(mNVMStatusAddress,(cyg_uint8 *)&temp_stat,sizeof(temp_stat));
+	cyg_flash_read(NVM_STAT_SECTOR,(cyg_uint8 *)&temp_stat,sizeof(temp_stat), 0);
 	if(check_crc(&temp_stat))
 	{
-		diag_printf("STAT CRC OK\n");
 		mDevStat = temp_stat;
 	}
 	else
 	{
-		for (int k = 0; k < 4; ++k)
+		for (int k = 0; k < NVM_MON_CNT; ++k)
 		{
-			mDevStat.analogSampleRange[k] = 5;
-			mDevStat.analogUpperLimit[k] = 500;
-			mDevStat.analogLowerLimit[k] = -500;
-
+			mDevStat.outputDefaultStatus[k] = 0;
+			mDevStat.inputDefaultStatus[k] = 0;
+			mDevStat.analogDefaultSamplerate[k] = 0;
 		}
-
-		mDevStat.logPeriod = 600;
 
 		updateStat();
 	}
+
+	mReadyFlag = true;
 }
 
-cyg_uint32 cNVM::getVersion()
+bool cNVM::isReady()
 {
-	return VERSION_NUM;
-}
-
-char* cNVM::getBuildDate()
-{
-	return BUILD_DATE;
+	return mReadyFlag;
 }
 
 cyg_uint32 cNVM::getSerial()
 {
+	//double check the CRC of the NVM data before returning serial
 	if(!check_crc(&mNvmData))
 	{
 		sNvmData temp_data;
-
-		SpiFlash::get()->ReadSpi(mNVMDataAddress, (cyg_uint8 *)&temp_data,sizeof(sNvmData));
-		if(check_crc(&temp_data))
+		if(readNVM(&temp_data))
+		{
 			mNvmData = temp_data;
+		}
+		else
+		{
+			set_defaults();
+			update();
+		}
 	}
 
-   return mNvmData.rmm_ser_num;
+	return mNvmData.rmm_ser_num;
 }
 
 void cNVM::setSerial(cyg_uint32 s)
@@ -95,129 +108,66 @@ void cNVM::setSerial(cyg_uint32 s)
    update();
 }
 
-void cNVM::setHWRev(char * hwr)
+cyg_uint8 cNVM::getOutputStat(cyg_uint8 device)
 {
-   strncpy((char *)mNvmData.hw_revision,(const char*)hwr,(cyg_uint8)NVM_STR_LEN);
-   mNvmData.hw_revision[NVM_STR_LEN -1] = 0;
-   update();
+	return mDevStat.outputDefaultStatus[device];
 }
 
-char * cNVM::getHWRev()
+void cNVM::setOutputStat(cyg_uint8 port, cyg_uint8 stat)
 {
-   return (char *)mNvmData.hw_revision;
-}
-
-float cNVM::getSampleRange(cyg_uint8 port)
-{
-	if(port < 4)
-		return mDevStat.analogSampleRange[port];
-
-	return 0xFF;
-}
-
-void cNVM::setSampleRange(cyg_uint8 port, float stat)
-{
-	if(port >= 4)
-		return;
-
-	if(mDevStat.analogSampleRange[port] != stat)
+	if(mDevStat.outputDefaultStatus[port] != stat)
 	{
-		printf("Saving new diff on port:%d to %0.1f\n", port, stat);
+		diag_printf("Saving default on output %d: %d\n", port, stat);
 		//diag_printf("DevStat was: %d, \n", mDevStat.defStatus[device] );
-		mDevStat.analogSampleRange[port] = stat;
+		mDevStat.outputDefaultStatus[port] = stat;
 		updateStat();
 	}
 }
 
-float cNVM::getUpperLimit(cyg_uint8 port)
+bool cNVM::getInputStat(cyg_uint8 num)
 {
-	if(port < 4)
-		return mDevStat.analogUpperLimit[port];
-
-	return 0xFF;
+	return mDevStat.inputDefaultStatus[num];
 }
 
-void cNVM::setUpperLimit(cyg_uint8 port, float stat)
+void cNVM::setInputStat(cyg_uint8 port, cyg_uint8 stat)
 {
-	if(port >= 4)
-		return;
-
-	if(mDevStat.analogUpperLimit[port] != stat)
+	//diag_printf("Dev %d, stat %d : set %d\n",device, mDevStat.inputStatus[device],stat);
+	if(mDevStat.inputDefaultStatus[port] != stat)
 	{
-		printf("Saving new upper limit on port:%d to %0.1f\n", port, stat);
-		//diag_printf("DevStat was: %d, \n", mDevStat.defStatus[device] );
-		mDevStat.analogUpperLimit[port] = stat;
+		diag_printf("Saving default on input %d: %d\n", port, stat);
+		//diag_printf("DevStat was: %d, \n", mDevStat.inputStatus[device] );
+		mDevStat.inputDefaultStatus[port] = stat;
 		updateStat();
 	}
 }
 
-float cNVM::getLowerLimit(cyg_uint8 port)
+cyg_uint8 cNVM::getAnalogStat(cyg_uint8 num)
 {
-	if(port < 4)
-		return mDevStat.analogLowerLimit[port];
-
-	return 0xFF;
+	return mDevStat.analogDefaultSamplerate[num];
 }
 
-void cNVM::setLowerLimit(cyg_uint8 port, float stat)
+void cNVM::setAnalogStat(cyg_uint8 port, cyg_uint8 stat)
 {
-	if(port >= 4)
-		return;
-
-	if(mDevStat.analogLowerLimit[port] != stat)
+	//diag_printf("Dev %d, stat %d : set %d\n",device, mDevStat.inputStatus[device],stat);
+	if(mDevStat.analogDefaultSamplerate[port] != stat)
 	{
-		printf("Saving new lower limit on port:%d to %0.1f\n", port, stat);
-		//diag_printf("DevStat was: %d, \n", mDevStat.defStatus[device] );
-		mDevStat.analogLowerLimit[port] = stat;
+		diag_printf("Saving default on analog %d: %d\n", port, stat);
+		//diag_printf("DevStat was: %d, \n", mDevStat.inputStatus[device] );
+		mDevStat.analogDefaultSamplerate[port] = stat;
 		updateStat();
 	}
 }
 
-void cNVM::setLogPeriod(cyg_uint32 period)
+cyg_bool cNVM::readNVM(sNvmData* temp_data)
 {
-	if(mDevStat.logPeriod != period)
+	cyg_flash_read(NVM_SECTOR, (cyg_uint8 *) temp_data, sizeof(sNvmData), 0);
+
+	if (check_crc(temp_data))
 	{
-		diag_printf("Saving new log period to %ds\n", period);
-		//diag_printf("DevStat was: %d, \n", mDevStat.defStatus[device] );
-		mDevStat.logPeriod = period;
-		updateStat();
-	}
-}
-
-cyg_uint32 cNVM::getLogPeriod()
-{
-	return mDevStat.logPeriod;
-}
-
-cyg_uint64 cNVM::getBoxSerial()
-{
-	if(!check_crc(&mNvmData))
-	{
-		sNvmData temp_data;
-
-		SpiFlash::get()->ReadSpi(mNVMDataAddress,(cyg_uint8 *)&temp_data,sizeof(sNvmData));
-		if(check_crc(&temp_data))
-			mNvmData = temp_data;
+		return true;
 	}
 
-	return mNvmData.box_ser_num;
-}
-
-void cNVM::setBoxSerial(cyg_uint64 ser)
-{
-	mNvmData.box_ser_num = ser;
-	update();
-}
-
-cyg_uint32 cNVM::getUpdatePeriod()
-{
-	return mNvmData.updatePeriod;
-}
-
-void cNVM::setUpdatePeriod(cyg_uint32 ser)
-{
-	mNvmData.rmm_ser_num = ser;
-	update();
+	return false;
 }
 
 void cNVM::setDefault()
@@ -234,6 +184,7 @@ cyg_bool cNVM::check_crc(sNvmData * d)
       diag_printf("NVM CRC Error 0x%04X != 0x%04X\n",calc_crc,d->crc);
       return false;
    }
+
    return true;
 }
 
@@ -245,6 +196,7 @@ cyg_bool cNVM::check_crc(sDeviceStat * d)
       diag_printf("STAT CRC Error 0x%04X != 0x%04X\n",calc_crc,d->crc);
       return false;
    }
+   diag_printf("STAT CRC OK\n");
    return true;
 }
 
@@ -259,14 +211,15 @@ void cNVM::set_defaults()
    strcpy((char*)&mNvmData.hw_revision[0],"May-2012");
 
    set_connection_defaults();
+
 }
 
 void cNVM::updateStat()
 {
 	mDevStat.crc = cCrc::ccitt_crc16((cyg_uint8 *)&mDevStat,sizeof(sDeviceStat)-2);
 
-	SpiFlash::get()->flash_erase(mNVMStatusAddress);
-	SpiFlash::get()->WriteSpi(mNVMStatusAddress,(cyg_uint8 *)&mDevStat,sizeof(mDevStat));
+	cyg_flash_erase(NVM_STAT_SECTOR, 1, 0);
+	cyg_flash_program(NVM_STAT_SECTOR,(cyg_uint8 *)&mDevStat,sizeof(mDevStat), 0);
 }
 
 void cNVM::update()
@@ -274,8 +227,20 @@ void cNVM::update()
 	dbg_printf(1,"\n\tWRITE\n");
    mNvmData.crc = cCrc::ccitt_crc16((cyg_uint8 *)&mNvmData,sizeof(sNvmData)-2);
 
-   SpiFlash::get()->flash_erase(mNVMDataAddress);
-   SpiFlash::get()->WriteSpi(mNVMDataAddress,(cyg_uint8 *)&mNvmData,sizeof(sNvmData));
+   cyg_flash_erase(NVM_SECTOR, 1, 0);
+   cyg_flash_program(NVM_SECTOR,(cyg_uint8 *)&mNvmData,sizeof(sNvmData), 0);
+}
+
+cNVM::sNvmData::sNvmData()
+{
+	rmm_ser_num = 0x7FFFFFFF;
+	box_ser_num = 0;
+	crc = 0;
+	server_name[0] = 0;
+	server_port = 0;
+	sim_puk_flag = 0;
+	updatePeriod = 0;
+	call_index = 1;
 }
 
 void cNVM::setAPN(char *apn)
@@ -381,6 +346,20 @@ void cNVM::setSimPukFlag(bool stat)
 	}
 }
 
+cyg_uint8 cNVM::getCallIndex()
+{
+   return mNvmData.call_index;
+}
+
+void cNVM::setCallIndex(cyg_uint8 stat)
+{
+	if(mNvmData.call_index != stat)
+	{
+		mNvmData.call_index = stat;
+		update();
+	}
+}
+
 bool cNVM::getSimPukFlag()
 {
    return mNvmData.sim_puk_flag;
@@ -402,17 +381,212 @@ void cNVM::set_connection_defaults()
 
 }
 
+
+//void cNVM::nvmBuff(cTerm & t,int argc,char *argv[])
+//{
+//	t<<(YELLOW("Default status:\n"));
+//	printf("  %-10s%-10s%-10s\n", "Output", "Input", "Analog");
+//	for(int k = 0; k < NVM_MON_CNT; k++)
+//	{
+//		printf("%d: %02X        %02X        %02d\n", k, cNVM::get()->getOutputStat(k), cNVM::get()->getInputStat(k), cNVM::get()->getAnalogStat(k));
+//	}
+//}
+
+void cNVM::config(cTerm & t,int mArgc,char *mArgv[])
+{
+	if(!__instance)
+		return;
+
+	t<<(YELLOW("Server configuration:\n"));
+
+	int arg_idx = 1;
+	while(arg_idx < mArgc)
+	{
+		if(!strcmp("apn",mArgv[arg_idx]))
+		{
+			// Move onto the parameter//
+			arg_idx++;
+			if(arg_idx < mArgc)
+			{
+				// We have a parameter //
+				t<<"Setting APN to "<<mArgv[arg_idx]<<"\n";
+				__instance->setAPN(mArgv[arg_idx]);
+			}
+			else
+			{
+				// Just print the APN name //
+				t<<"APN="<<__instance->getAPN()<<"\n";
+				return;
+			}
+		}
+		else if(!strcmp("user",mArgv[arg_idx]))
+		{
+			// Move onto the parameter//
+			arg_idx++;
+			if(arg_idx < mArgc)
+			{
+				// We have a parameter //
+				t<<"Setting User to "<<mArgv[arg_idx]<<"\n";
+				__instance->setUser(mArgv[arg_idx]);
+			}
+			else
+			{
+				// Just print the User name //
+				t<<"USER="<<__instance->getUser()<<"\n";
+				return;
+			}
+		}
+		else if(!strcmp("passwd",mArgv[arg_idx]))
+		{
+			// Move onto the parameter//
+			arg_idx++;
+			if(arg_idx < mArgc)
+			{
+				// We have a parameter //
+				t<<"Setting Password to "<<mArgv[arg_idx]<<"\n";
+				__instance->setPasswd(mArgv[arg_idx]);
+			}
+			else
+			{
+				// Just print the password name //
+				t<<"PASSWD="<<__instance->getPasswd()<<"\n";
+				return;
+			}
+		}
+		else if(!strcmp("server",mArgv[arg_idx]))
+		{
+			// Move onto the parameter//
+			arg_idx++;
+			if(arg_idx < mArgc)
+			{
+				// We have a parameter //
+				t<<"Setting server to "<<mArgv[arg_idx]<<"\n";
+				__instance->setServer(mArgv[arg_idx]);
+			}
+			else
+			{
+				// Just print the Server name //
+				t<<"SERVER="<<__instance->getServer()<<"\n";
+				return;
+			}
+		}
+		else if(!strcmp("cell",mArgv[arg_idx]))
+				{
+					// Move onto the parameter//
+					arg_idx++;
+					if(arg_idx < mArgc)
+					{
+						// We have a parameter //
+						t<<"Setting SIM cell to "<<mArgv[arg_idx]<<"\n";
+						__instance->setSimCell(mArgv[arg_idx]);
+					}
+					else
+					{
+						// Just print the Server name //
+						t<<"SIM CELL="<<__instance->getSimCell()<<"\n";
+						return;
+					}
+				}
+		else if(!strcmp("pin",mArgv[arg_idx]))
+		{
+			// Move onto the parameter//
+			arg_idx++;
+			if(arg_idx < mArgc)
+			{
+				// We have a parameter //
+				t<<"Setting SIM pin to "<<mArgv[arg_idx]<<"\n";
+				__instance->setSimPin(mArgv[arg_idx]);
+			}
+			else
+			{
+				// Just print the Server name //
+				t<<"SIM PIN="<<cNVM::get()->getSimPin()<<"\n";
+				return;
+			}
+		}
+		else if(!strcmp("puk",mArgv[arg_idx]))
+		{
+			// Move onto the parameter//
+			arg_idx++;
+			if(arg_idx < mArgc)
+			{
+				// We have a parameter //
+				t<<"Setting SIM puk to "<<mArgv[arg_idx]<<"\n";
+				__instance->setSimPuk(mArgv[arg_idx]);
+			}
+			else
+			{
+				// Just print the Server name //
+				t<<"SIM PUK="<<__instance->getSimPuk()<<"\n";
+				return;
+			}
+		}
+		else if(!strcmp("port",mArgv[arg_idx]))
+		{
+			// Move onto the parameter//
+			arg_idx++;
+			int port;
+			if(arg_idx < mArgc)
+			{
+				// We have a parameter //
+				port = atoi(mArgv[arg_idx]);
+				t<<"Setting port to "<<port<<"\n";
+				__instance->setPort(port);
+			}
+			else
+			{
+				// Just print the Server name //
+				t<<"PORT="<<(int)__instance->getPort()<<"\n";
+				return;
+			}
+		}
+		else if(!strcmp("idx",mArgv[arg_idx]))
+		{
+			// Move onto the parameter//
+			arg_idx++;
+			int index;
+			if(arg_idx < mArgc)
+			{
+				// We have a parameter //
+				index = atoi(mArgv[arg_idx]);
+				t<<"Setting idx to "<<index<<"\n";
+				__instance->setCallIndex(index);
+			}
+			else
+			{
+				// Just print the index //
+				t<<"IDX="<<(int)__instance->getCallIndex()<<"\n";
+				return;
+			}
+		}
+		else if(!strcmp("default",mArgv[arg_idx]))
+		{
+			// Move onto the parameter//
+			t<<"Setting configuration defaults ...\n";
+			__instance->setDefault();
+		}
+
+		else
+		{
+			t<<"Unknown parameter "<<mArgv[arg_idx]<<"\n";
+		}
+		// move onto next param descriptor //
+		arg_idx++;
+	}
+	t<<t.format("%12s","ALRM IDX = ")	<<(int)__instance->getCallIndex()<<"\n";
+	t<<t.format("%12s","ALRM CELL = ")	<<__instance->getSimCell()<<"\n";
+	t<<t.format("%12s","SIM PIN = ")	<<__instance->getSimPin()<<"\n";
+	t<<t.format("%12s","SIM PUK = ")	<<__instance->getSimPuk()<<"\n";
+	t<<"\n";
+	t<<t.format("%12s","APN = ")		<<__instance->getAPN()<<"\n";
+	t<<t.format("%12s","USER = ")		<<__instance->getUser()<<"\n";
+	t<<t.format("%12s","PASSWD = ")		<<__instance->getPasswd()<<"\n";
+	t<<t.format("%12s","SERVER = ")		<<__instance->getServer()<<"\n";
+	t<<t.format("%12s","PORT = ")		<<t.format("%04d", __instance->getPort())<<"\n";
+
+}
+
 cNVM::~cNVM()
 {
 }
 
-cNVM::sNvmData::sNvmData()
-{
-	rmm_ser_num = 0xFFFFFFFF;
-	box_ser_num = 0;
-	crc = 0;
-	server_name[0] = 0;
-	server_port = 0;
-	sim_puk_flag = 0;
-	updatePeriod = 0;
-}

@@ -2,6 +2,7 @@
 #include <cyg/hal/hal_diag.h>
 #include <cyg/hal/var_io.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "MCP_rtc.h"
 
@@ -328,6 +329,51 @@ time_t cRTC::getPowerDown()
 time_t cRTC::getPowerUp()
 {
 	return mPowerUp;
+}
+
+void cRTC::set(cTerm & term, int argc,char * argv[])
+{
+	cyg_uint16 yy,mm,dd,h,m,s;
+	if(argc > 5)
+	{
+		yy = strtoul(argv[1],NULL,10);
+		if(yy < 1900)
+			return;
+		diag_printf("yy : %d\n", yy);
+
+		mm = strtoul(argv[2],NULL,10);
+		if(mm > 12)
+			return;
+		diag_printf("mm : %d\n", mm);
+
+		dd = strtoul(argv[3],NULL,10);
+		if(dd > 31)
+			return;
+		diag_printf("dd : %d\n", dd);
+
+		h = strtoul(argv[4],NULL,10);
+		if(h > 24)
+			return;
+		diag_printf("h  : %d\n", h);
+
+		m = strtoul(argv[5],NULL,10);
+		if(m > 60)
+			return;
+		diag_printf("m  : %d\n", m);
+
+		s = strtoul(argv[6],NULL,10);
+		if(s > 60)
+			return;
+		diag_printf("s  : %d\n", s);
+
+		__instance->setTime(yy, mm, dd, h, m, s);
+
+		term<<"Updated time\n";
+	}
+	else
+	{
+		term<<"Not enough input values. See help\n";
+	}
 }
 
 

@@ -1,14 +1,12 @@
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "sys_mon.h"
 
-#include "temp_mon.h"
 #include "MCP_rtc.h"
-#include "hobbs_timer.h"
-#include "led.h"
 #include "nvm.h"
 #include "crc.h"
-#include "pwr_mon.h"
+#include "input_port.h"
 
 cSysMon* cSysMon::_instance = 0;
 
@@ -28,24 +26,23 @@ cSysMon* cSysMon::get()
 
 cSysMon::cSysMon()
 {
+	mAlarmAck = true;
+	mAlarmEnabled = false;
+	mAlarmTimer = 0;
+	mAlarmDisEnable = false;
+	mWalkOutTime = 0;
+	mAlarmFrameState = false;
+	mTestMissedCallFlag = false;
+
 	mRXlen = 0;
-	mPowerStat = false;
 	replied = false;
-	
-	mLastSession = 0;
 	mUploadFailCnt = 0;
+	mPowerFlag = false;
 
 	mWatchDog = new wdKicker(300);
-	diag_printf("WATCHDOG %p for SYSMON\n", mWatchDog);
 
-	cyg_mutex_init(&mSessionMutex);
+	cyg_mutex_init(&mMonitorMutex);
 
-	cyg_mutex_init(&mBuffMutex);
-	cyg_mutex_init(&mWaitMutex);
-	cyg_cond_init(&mWaitCond, &mWaitMutex);
-
-	cyg_mutex_init(&mEventMutex);
-	cyg_cond_init(&mEventCond, &mEventMutex);
 
 	cyg_thread_create(SYSMON_PRIOR,
 			cSysMon::sys_thread_func,
@@ -63,258 +60,447 @@ cSysMon::cSysMon()
 void cSysMon::sys_thread_func(cyg_addrword_t arg)
 {
 	cSysMon *t = (cSysMon *)arg;
+	cyg_bool monStat = false;
+
 	for(;;)
 	{
-		//do every 30s
-		cyg_uint32 wait = cyg_current_time() + 15000;
-		if(cyg_cond_timed_wait(&(t->mEventCond), wait))
+
+		t->mWatchDog->reset();
+		cyg_mutex_lock(&t->mMonitorMutex);
+		monStat = t->monitor();
+		cyg_mutex_unlock(&t->mMonitorMutex);
+	}
+}
+
+cyg_bool cSysMon::monitor()
+{
+	s_action  * act = (s_action *)cyg_mbox_timed_get(mActionQHandle, cyg_current_time() + 15000);
+	if (act)
+	{
+		cyg_bool stat = false;
+		switch(act->type)
 		{
-			if(t->mEvent.getType() != cEvent::EVENT_UNKNOWN)
+		case event:
+		{
+			s_event * evt = (s_event*)act->action;
+			if(evt)
 			{
-				diag_printf("Logging event\n");
-				t->mEvent.showEvent();
+				stat = handleEvent(evt);
+				delete evt;
+			}
+		}
+		break;
 
-				cLog::get()->logEvent(&(t->mEvent));
+		case plainAction:
+			stat = handleAction(act->action);
+			break;
 
-				cEvent n;
-				t->mEvent = n;
+		default:
+			break;
+		}
+
+		delete act;
+
+		return stat;
+	}
+
+
+
+	return false;
+}
+
+void cSysMon::updateAlarmState()
+{
+
+}
+
+void cSysMon::armDisarm()
+{
+	if(!mWalkOutTime)
+	{
+		if(mAlarmEnabled)
+		{
+			disarm();
+		}
+		else
+		{
+			arm();
+		}
+
+		mWalkOutTime = 3;
+	}
+
+	mWalkOutTime--;
+	diag_printf("SYSMON: Walkout %d\n", mWalkOutTime);
+
+	if(mWalkOutTime == 0)
+	{
+		mAlarmDisEnable = false;
+	}
+}
+
+void cSysMon::arm()
+{
+	if(mAlarmEnabled)
+		return;
+
+	mAlarmEnabled = true;
+	cLED::get()->disable();
+	cLED::get()->indicate(cLED::walkOut);
+
+	diag_printf("SYSMON: ARMED\n");
+}
+
+void cSysMon::disarm()
+{
+	if(!mAlarmEnabled)
+		return;
+
+	mAlarmEnabled = false;
+	cLED::get()->enable();
+	diag_printf("SYSMON: DISARMED\n");
+}
+
+cyg_bool cSysMon::handleAction(cyg_addrword_t action)
+{
+	if(!(cModem::get()->getModemStatus() == cModem::GPRSatt || cModem::get()->getModemStatus() == cModem::NetworkRegistered))
+	{
+		diag_printf("Wait for modem to register\n");
+		QAction(new s_action(plainAction, action));
+
+		return false;
+	}
+
+	switch(action)
+	{
+	case sysmonActionTest:
+		{
+			time_t now = cRTC::get()->timeNow();
+			diag_printf("SYSMON: Try placing Test missed call %s", asctime(localtime(&now)));
+
+			if(placeMissedCall())
+			{
+				now = cRTC::get()->timeNow();
+
+				diag_printf("SYSMON: Test missed call placed  %s", asctime(localtime(&now)));
+			}
+			else
+			{
+				QAction(new s_action(plainAction, sysmonActionTest));
+			}
+		}
+		break;
+
+	case sysmonActionAlarm:
+	{
+		static cyg_uint32 missedCallHeader = 0;
+		time_t now = cRTC::get()->timeNow();
+
+		//when alarm was enabledDisbaled ignore alarms
+		if(mAlarmDisEnable)
+			break;
+
+		//only handle alarm action every 5 minutes
+		if(now < mAlarmTimer + 300)
+		{
+			diag_printf("SYSMON: Alarm was handled less than 5 min. ago\n");
+			break;
+		}
+		mAlarmTimer = now;
+
+		if(mAlarmEnabled && !mAlarmAck)
+		{
+			if(!missedCallHeader)
+			{
+				diag_printf("SYSMON: Alarm! try placing missed call %s", asctime(localtime(&now)));
+				missedCallHeader = now;
+			}
+
+			if(placeMissedCall())
+			{
+				now = cRTC::get()->timeNow();
+
+				diag_printf("SYSMON: missed call placed (%ds) - %s", now - missedCallHeader, asctime(localtime(&now)));
+				missedCallHeader = 0;
+
+//				cModem::get()->power(0);
+			}
+			else
+			{
+				mAlarmTimer = 0;
+				QAction(new s_action(plainAction, sysmonActionAlarm));
 			}
 		}
 		else
 		{
-			//monitor the temperatures and transmit logs at set interval
-			//TODO analogue inputs NOT logged t->monitor();
+			diag_printf("SYSMON: Alarm disabled NOT placing missed call\n");
+			mAlarmAck = true;
 		}
-		t->mWatchDog->reset();
-
-
-		//Do nothing when the unit has not been assigned a box number
-		if(!cNVM::get()->getBoxSerial())
-			continue;
 	}
-}
+	break;
 
-
-
-void cSysMon::monitor()
-{
-	static time_t mLastLog = 0;
-	static cyg_bool criticalUploadFlag = false;
-	
-	time_t now = cRTC::get()->timeNow();
-
-	//sample temperatures and power source every hour
-	if(now > (mLastLog + 3600))
-	{
-		diag_printf("Doing hourly maintenance\n");
-		mLastLog = now;
-		logInputStateNow();
-		cTempMon::get()->logSamplesNow();
-	}
-
-	//sample input states if it has changed
-	checkInputState();
-
-	//log temperatures only once
-	static cyg_bool logTempFlag = false;
-
-	//sample temperatures and if they differ with more than the set range log them
-	if(cTempMon::get()->checkTemps())
-	{
-		criticalUploadFlag = true; //if a temperature is critical upload logs NOW
-		logTempFlag = false;
-	}
-
-//	TODO Upload of logs disabled
-//	//upload logs if any of the temperatures' state change
-//	if(criticalUploadFlag)
-//	{
-//		diag_printf("Temperature out of bounds has changed, uploading logs in %ds\n", (600/30 - (mUploadFailCnt + 5))*30);
-//
-//		//when temperatures changed log them now
-//		if(!logTempFlag)
-//		{
-//			logTempFlag = true;
-//			cTempMon::get()->logSamplesNow();
-//		}
-//
-//		//if upload fails, it will retry in 600s (10min)
-//		if(uploadLogs(600))
-//		{
-//			criticalUploadFlag = false;
-//		}
-//	}
-//	else if( now == 0 || (unsigned int)now > (mLastSession + cNVM::get()->getLogPeriod())) //upload the logs every log period
-//	{
-//		//if upload fails, it will retry in 3600s (1hour)
-//		uploadLogs(3600);
-//	}
-}
-
-void cSysMon::logEvent(cEvent *e)
-{
-	memcpy(&mEvent, e, sizeof(cEvent));
-	delete e;
-
-	cyg_cond_signal(&mEventCond);
-
-}
-//only log state if it has changed
-void cSysMon::checkInputState()
-{
-	static cyg_uint8 DieselStat = 0;
-	static cyg_uint8 ElectricStat = 0;
-
-	//log event if input changed
-	cyg_uint8 currState = cPwrMon::get()->getPinStat(0);
-	if(DieselStat != currState)
-	{
-		DieselStat = currState;
-		cEvent e(0, currState, cRTC::get()->timeNow());
-		e.showEvent();
-		cLog::get()->logEvent(&e);
-	}
-
-	//log event if input changed
-	currState = cPwrMon::get()->getPinStat(1);
-	if(ElectricStat != currState)
-	{
-		ElectricStat = currState;
-		cEvent e(1, currState, cRTC::get()->timeNow());
-		e.showEvent();
-		cLog::get()->logEvent(&e);
-	}
-}
-
-void cSysMon::logInputStateNow()
-{
-	diag_printf("Logging power states\n");
-	// log diesel input state
-	{
-		cyg_uint8 currState = cPwrMon::get()->getPinStat(0);
-		cEvent e(0, currState, cRTC::get()->timeNow());
-		e.showEvent();
-		cLog::get()->logEvent(&e);
-	}
-	//log electric input state
-	{
-		cyg_uint8 currState = cPwrMon::get()->getPinStat(1);
-		cEvent e(1, currState, cRTC::get()->timeNow());
-		e.showEvent();
-		cLog::get()->logEvent(&e);
-	}
-}
-
-cyg_bool cSysMon::uploadLogs(cyg_uint32 retryCount)
-{
-	cyg_bool uploadStatus = false;
-
-	if(mUploadFailCnt < 5)
-	{
-		cyg_mutex_lock(&mSessionMutex);
-
-		diag_printf("MONITOR: Last session was %s", ctime(&mLastSession));
-		cyg_uint8 err = doSession();
-		if(err)
+	case sysmonActionPowerLoss:
+		if(sendPowerSMS(0))
 		{
-			cLED::get()->indicate((cLED::eLEDstatus)err);
-
-			mUploadFailCnt++;
-			dbg_printf(red, "SESSION: Unsuccessful transfer\n");
+			mPowerFlag = false;
+			diag_printf("SYSMON: SMS sent\n");
 		}
 		else
 		{
-			cLED::get()->indicate(cLED::idle);
-			mUploadFailCnt = 0;
-			uploadStatus = true;
-
-			dbg_printf(green, "SESSION: Transfer Successful\n");
-
-			//when successful, do again next session period
-			mLastSession = cRTC::get()->timeNow();
+			QAction(new s_action(plainAction, sysmonActionPowerLoss));
 		}
-		cyg_mutex_unlock(&mSessionMutex);
+		break;
+	case sysmonActionPowerRestored:
+		if(sendPowerSMS(1))
+		{
+			mPowerFlag = false;
+			diag_printf("SYSMON: SMS sent\n");
+		}
+		else
+		{
+			QAction(new s_action(plainAction, sysmonActionPowerRestored));
+		}
+		break;
+
+	case sysmonActionSMS:
+		handleSMSlist();
+		break;
+	}
+
+	return true;
+}
+
+cyg_bool cSysMon::handleEvent(s_event* evt)
+{
+
+	//digital input
+	if(evt->portNumber != 0xFF)
+	{
+		diag_printf("SYSMON: Input %d : %s\n", evt->portNumber, evt->state?"close":"open");
+
+		if(evt->portNumber == POWER_IN_PORT)
+		{
+			diag_printf("SYSMON: Power Changed\n");
+			//only queue one alarm action until it has been handled
+			if(!mPowerFlag)
+			{
+				mPowerFlag = true;
+				if(evt->state)
+					QAction(new s_action(plainAction, sysmonActionPowerLoss));
+				else
+					QAction(new s_action(plainAction, sysmonActionPowerRestored));
+			}
+			return true;
+		}
+
+		if(evt->portNumber == ALARM_SET_PORT)
+		{
+			if(!mAlarmDisEnable)
+			{
+				diag_printf("SYSMON: ALARM SET/RESET\n");
+				mAlarmDisEnable = true;
+				return false;
+			}
+		}
+		else
+		{
+			time_t now = cRTC::get()->timeNow();
+			struct tm* info = localtime(&now);
+			diag_printf("SYSMON: [%d:%d]\n", info->tm_wday, info->tm_hour);
+
+			if(!mAlarmTimer)
+			{
+				diag_printf("SYSMON: Setting Alarm\n");
+				mAlarmAck = false;
+				QAction(new s_action(plainAction, sysmonActionAlarm));
+			}
+			else
+			{
+				diag_printf("SYSMON: Alarm was handled less than 5 min. ago\n");
+			}
+		}
+	}
+
+	return true;
+}
+
+void cSysMon::handleSMSlist()
+{
+
+	cMdmReadSMS::sSMS * list[10];
+	for(cyg_uint8 k = 0; k < 10; k++)
+		list[k] = 0;
+
+	if(cModem::get()->getSMSlist(list))
+	{
+		diag_printf("SYSMON: Handling SMS's\n");
+
+		cyg_uint8 k = 0;
+		while(list[k])
+		{
+			//Only handle SMS from members in the phone book (phone book entries has names)
+			if(list[k]->mName[0])
+			{
+				diag_printf("SYSMON: SMS from %s\n", list[k]->mName);
+				handleSMScommand(list[k]);
+			}
+			else
+			{
+				diag_printf("SYSMON: SMS\n %s\n", list[k]->mText);
+			}
+
+			//list[k]->show();
+			delete list[k];
+			k++;
+		}
+
+		diag_printf("SYSMON: Delete All read SMS\n");
+		cModem::get()->deleteSMS();
+	}
+
+	diag_printf("SYSMON: Handling SMS done\n");
+}
+
+void cSysMon::handleSMScommand(cMdmReadSMS::sSMS * sms)
+{
+	diag_printf("SYSMON: Handling command %s\n", sms->mText);
+	//diag_dump_buf((void*)command, strlen(command));
+	if(!strcmp(sms->mText,"Disable\r"))
+	{
+		diag_printf("SYSMON: Disable alarm\n");
+		mAlarmEnabled = false;
+	}
+	else if(!strcmp(sms->mText,"Enable\r"))
+	{
+		diag_printf("SYSMON: Enable alarm\n");
+		mAlarmEnabled = true;
+	}
+	else if(!strcmp(sms->mText,"Status\r"))
+	{
+		char txtMsg[160];
+		diag_printf("SYSMON: Reply Status\n");
+
+		sprintf(txtMsg, "%s\n\nPIR: %s\nMiddle Door: %s\nReception Door: %s\nEmployee Door: %s\n", mAlarmEnabled?"ARMED":"DISARMED"
+						, cInput::get()->getPortState(0)?"HIGH":"LOW"
+						, cInput::get()->getPortState(1)?"CLOSED":"OPEN"
+						, cInput::get()->getPortState(2)?"OPEN":"CLOSED"
+						, cInput::get()->getPortState(3)?"OPEN":"CLOSED"
+				);
+
+		diag_printf("SYSMON: SMS %s\n%s\n", sms->mNumber, txtMsg);
+		cModem::get()->sendSMS(sms->mNumber, txtMsg);
+	}
+
+}
+
+bool cSysMon::placeMissedCall()
+{
+	bool status = false;
+	bool stat = 0;
+
+	diag_printf("SYSMON: placing missed call\n");
+
+	if(cNVM::get()->getCallIndex())
+		stat = cModem::get()->missedCall(cNVM::get()->getCallIndex());
+	else
+		stat = cModem::get()->missedCall(cNVM::get()->getSimCell());
+
+
+	if(stat)
+	{
+		status = true;
 	}
 	else
 	{
-		mUploadFailCnt++;
-	}
+		diag_printf("SYSMON: missed call failed\n");
 
-	//when failed repeatedly, switch off modem and retry after a longer time
-	if(mUploadFailCnt == 5)
-	{
-		dbg_printf(red, "SESSION: Shutting down modem\n");
-		shutDownModem();
-	}
-
-	//retry to transfer logs when transfer failed every retryCount seconds
-	if(mUploadFailCnt > (retryCount/30)) //monitor is called every 30seconds so this will restart after a power down
-	{
-		dbg_printf(green, "SESSION: Transfer retry after wait\n");
-		mUploadFailCnt = 0;
-
-		static cyg_uint8 retryFailFlag = 0;
-		if(retryFailFlag++ > 2)
+		if(mUploadFailCnt++ > 2)
 		{
-			diag_printf("Transfer fails, System will restart now\n");
-			cyg_thread_delay(100);
-			cyg_uint32 reg32;
-			//HAL_READ_UINT32(0xE000ED00 + 0x0C, reg32); //SCB_AIRCR, SYSRESETREQ
-			reg32 = (0x5FA << 16) | (1 << 2);
-			HAL_WRITE_UINT32(0xE000ED00 + 0x0C, reg32);
+			mUploadFailCnt = 0;
+
+			cLED::get()->indicate(cLED::waitNetwork);
+
+			diag_printf("SYSMON: Reset modem\n");
+			cModem::get()->power(0);
+			cyg_thread_delay(10000);
+
 		}
 	}
 
-	return uploadStatus;
+	return status;
 }
 
-void cSysMon::shutDownModem()
+bool cSysMon::sendPowerSMS(cyg_bool state)
 {
-    cModem::get()->shutIP();
-    cModem::get()->IPstatus();
-    if(!mPowerStat)
-    {
-        cModem::get()->power(0);
-    }
+	bool TXstat = true;
+	char lossMsg[] = "Power Loss";
+	char restoreMsg[] = "Power Restore";
+	char* txtMsg;
+
+	if(state)
+	{
+		txtMsg = restoreMsg;
+	}
+	else
+	{
+		txtMsg = lossMsg;
+	}
+
+	//SMS all persons in the phonebook
+	cMdmGetPB::s_entry list[20];
+	int pbSize = 20;
+	int pbCount = 0;
+
+	//try read phone book 3 times each 5s
+	int retryCnt = 2;
+	bool TXdone = false;
+	do
+	{
+		if(cModem::get()->getPhoneBook(list, &pbCount, &pbSize))
+		{
+			for(int k = 0; k < pbCount; k++)
+			{
+				diag_printf("SYSMON: SMS %s to %s\n", txtMsg, list[k].number);
+				TXstat = cModem::get()->sendSMS(list[k].number, txtMsg);
+				if(!TXstat)
+					break;
+				retryCnt = 2;
+			}
+
+			TXdone = true; //end do while
+		}
+		else
+		{
+			cyg_thread_delay(2500); //wait 5s
+		}
+	}while(!TXdone && retryCnt--);
+
+	return TXstat;
 }
 
-cyg_uint8 cSysMon::doSession()
+
+void cSysMon::acknowledgeAlarm()
 {
-	cyg_uint8 err;	
-
-	//try setup Modem
-	err = attachModem();
-	if(err)
-		return err;
-
-	diag_printf("SESSION: Modem Linked,\n");
-
-	//modem now connected, transfer logs to server
-	err = doTransfer();
-	if(err)
-		return err;
-
-    //when successful transfer powerModem down
-    shutDownModem();
-
-	return 0;
+	mAlarmAck = true;
 }
 
-cyg_uint8 cSysMon::attachModem()
+cLED::eLEDstatus cSysMon::registerModem()
 {
-	cLED::get()->indicate(cLED::connecting);
+	static cyg_bool setDefaults = false;
 
-	cModem::eModemStat stat = cModem::get()->getStatus();
+	cModem::get()->updateStatus();
+	cModem::eModemStat stat = cModem::get()->getModemStatus();
 
 	//when modem is off, power it up
 	if(stat == cModem::Off)
 	{
+		diag_printf("SYSMON: Powering modem\n");
 		cModem::get()->power(1);
-		diag_printf("SESSION: Powering modem\n");
-		//wait for modem to initialise
-		cyg_thread_delay(1000);
 
-		stat = cModem::get()->getStatus();
+		//wait for modem to initialize
+		cyg_thread_delay(2000);
+
+		stat = cModem::get()->getModemStatus();
 		if(stat == cModem::Off)
 		{
 			//restart yourself if the modem seems not to power up
@@ -333,818 +519,122 @@ cyg_uint8 cSysMon::attachModem()
 		}
 	}
 
-	cModem::get()->setFixedBaud();
-	cModem::get()->setEcho(0);
+	if(!setDefaults)
+		setDefaults =  cModem::get()->setEcho(0); //cModem::get()->setFixedBaud() &&
 
-	do
+	switch(stat)
 	{
-		//check SIM status
-		switch(stat)
-		{
-			case cModem::needSIM:
-				diag_printf("SESSION: Insert SIM - Powering down modem\n");
-				cModem::get()->power(0);
-				return cLED::SIMerr;
-
-			case cModem::needPUK:
-			{
-				if(!cNVM::get()->getSimPukFlag() && cModem::get()->insertPUK(cNVM::get()->getSimPuk(), cNVM::get()->getSimPin()))
-				{
-					//wait for PIN accepted
-					cyg_thread_delay(500);
-				}
-				else
-				{
-					cNVM::get()->setSimPukFlag(true);
-					diag_printf("SESSION: SIM blocked, PUK needed\n");
-					return cLED::PUKerr;
-				}
-			}
-				break;
-
-			case cModem::needPIN:
-				if(cModem::get()->insertPIN(cNVM::get()->getSimPin()))
-				{
-					//wait for PIN accepted
-					cNVM::get()->setSimPukFlag(false);
-					cyg_thread_delay(500);
-				}
-				else
-				{
-					diag_printf("SESSION: incorrect PIN\n");
-					return cLED::PINerr;
-				}
-				break;
-
-			case cModem::NetworkBusy:
-			case cModem::NetworkReg:
-				diag_printf("SESSION: Waiting for Network\n");
-				return cLED::waitNetwork;
-
-			case cModem::Off:
-				diag_printf("SESSION: Modem is OFF\n");
-				return cLED::couldNotPwrModem;
-				break;
-
-			default:
-				break;
-
-		}
-
-		stat = cModem::get()->getStatus();
-
-	}while(!(stat == cModem::GPRSatt || stat == cModem::Linked));
-	diag_printf("SESSION: Modem attached\n");
-
-	//link Modem to server
-	if(!cModem::get()->upModemLink(cNVM::get()->getServer(), cNVM::get()->getPort(), cNVM::get()->getAPN(), cNVM::get()->getUser(), cNVM::get()->getPasswd()))
+	case cModem::SIMnotReady:
 	{
-		cModem::get()->shutIP();
-		return cLED::LinkErr;
+		cLED::eLEDstatus simStat = checkSIM();
+		if(simStat)
+			return simStat;
+	}
+	break;
+
+	case cModem::NetworkSearching:
+		diag_printf("SYSMON: Searching for Network\n");
+		return cLED::waitNetwork;
+
+	case cModem::NetworkBusy:
+		diag_printf("SYSMON: Waiting for Network\n");
+		return cLED::waitNetwork;
+
+	case cModem::GPRSatt:
+	case cModem::NetworkRegistered:
+		diag_printf("SYSMON: Registered\n");
+		return (cLED::eLEDstatus)0;
+
+	case cModem::Off:
+		diag_printf("SYSMON: Modem is OFF\n");
+		return cLED::couldNotPwrModem;
+
+	default:
+		diag_printf("SYSMON: Modem stat %d\n", stat);
+		return cLED::waitNetwork;
+
 	}
 
-	return 0;
+	return (cLED::eLEDstatus)0;
 }
 
-cyg_uint8 cSysMon::doTransfer()
-{
-	cLED::get()->indicate(cLED::transfering);
-	cEvent e;
-	bool hobbsTimesFlag = true;
-	static bool startUpFlag = false;
-
-	dbg_printf(1,"Try transfer\n");
-	do
-	{
-		cyg_uint16 len = 0;
-
-		if(hobbsTimesFlag)
-		{
-			dbg_printf(1,"Insert Times\n");
-
-			//Fill TXbuffer with hobbs timer times
-			insertCfg(len, mTXbuff, MODEM_BUFF_SIZE);
-			insertTime(0, len, mTXbuff, MODEM_BUFF_SIZE); //timer for port 0
-			insertTime(1, len, mTXbuff, MODEM_BUFF_SIZE); //timer for port 1
-			insertTime(2, len, mTXbuff, MODEM_BUFF_SIZE); //timer for port 2
-
-			//When the system starts up for the first time, send the power Change time stamps
-			if(!startUpFlag)
-			{
-				if(insertPwrChange(len, mTXbuff, MODEM_BUFF_SIZE))
-					startUpFlag = true;
-			}
-
-			hobbsTimesFlag = false;
-		}
-
-		//Fill TXbuffer with events
-		cyg_uint32 logCnt = 0;
-		do
-		{
-			dbg_printf(1,"Insert Event\n");
-			if(cLog::get()->readEvent(&e))
-			{
-				if(!insertEvent(&e, len, mTXbuff, MODEM_BUFF_SIZE))
-					break;
-
-				logCnt++;
-			}
-		}while(cLog::get()->readNext());
-
-
-		//move back in log
-		for(cyg_uint8 k = 0 ; k < logCnt; k++)
-			cLog::get()->readPrev();
-
-		dbg_printf(1,"Moved back in log\n");
-
-
-		if(!waitReply(mTXbuff, len))
-		{
-			if(startUpFlag)
-				startUpFlag = false;
-			return cLED::noReply;
-		}
-
-		dbg_printf(1,"RX reply\n");
-
-		cyg_mutex_lock(&mBuffMutex);
-		bool stat = validFrame(mRXbuff, mRXlen);
-		cyg_mutex_unlock(&mBuffMutex);
-
-		if(!stat)
-		{
-			if(startUpFlag)
-				startUpFlag = false;
-			return cLED::invalidFrame;;
-		}
-
-		//ACK these events in log when data acknowledged by server
-		for(cyg_uint8 k = 0 ; k < logCnt; k++)
-		{
-			cLog::get()->acknowledge();
-			cLog::get()->readNext();
-		}
-
-		dbg_printf(1,"Packet sent\n");
-
-	}while(cLog::get()->readEvent(&e));
-
-	dbg_printf(1,"Session done\n");
-	return 0;
-}
-
-bool cSysMon::validFrame(cyg_uint8* buff, cyg_uint16 len)
-{
-	if(len == 0)
-		return false;
-
-	dbg_printf(3, "SYSMON: RX msg: %d\n", len);
-	dbg_dump_buf(3 ,buff,len);
-
-	cyg_uint16 idx = 0;
-
-	do
-	{
-		cyg_uint16 msgLen = buff[idx];
-
-		if(msgLen == 0)
-			return false;
-
-		dbg_printf(2, "Message len %d\n", msgLen);
-
-		idx++;
-		if(cCrc::crc8(&buff[idx], msgLen + 1))
-			return false;
-
-		uKMsg m(RMMdict::MsgDict, RMMdict::TagDict, &buff[idx], msgLen);
-		handleMessage(&m);
-
-		idx += msgLen + 1;
-
-	}while(idx < len);
-
-
-	return true;
-}
-
-bool cSysMon::handleMessage(uKMsg *m)
+cLED::eLEDstatus cSysMon::checkSIM()
 {
 
-	if(!m)
-		return false;
+	cModem::eSIMstat status = cModem::get()->getSIMstatus();
 
-
-	if(!isMyMessage(m))
-		return false;
-
-//--------------PRINT TAGS----------------------------------
-	if(mDebugLevel >= 1)
+	switch(status)
 	{
-		printMessage(m);
-	}
-//----------------------------------------------------------
+	case cModem::SIMneeded:
+		diag_printf("SYSMON: Insert SIM - Powering down modem\n");
+		cModem::get()->power(0);
+		return cLED::SIMerr;
 
-	switch(m->id())
+	case cModem::SIMpuk:
 	{
-		case RMMdict::MSG_SET_TIME:
-			handleSetTime(m);
-			break;
-
-		case RMMdict::MSG_SET_LOG_CNF:
-			handleSetCFG(m);
-			break;
-
-		case RMMdict::MSG_SET_HOBBS_TIME:
-			handleSetHobbs(m);
-			break;
-
-		default:
-			break;
-	}
-
-	return false;
-}
-
-bool cSysMon::handleSetCFG(uKMsg *m)
-{
-	if(!m)
-		return false;
-
-	dbg_printf(2, "Valid CFG message\n");
-
-	float range = 0;
-	int port = -1;
-	float upper = 600;
-	float lower = -600;
-	cyg_uint32 logTime = 0;
-
-	uKTag* t = m->firstTag();
-	while(t)
-	{
-		if(t->id() == RMMdict::TAG_PORT_NUM)
+		if(!cNVM::get()->getSimPukFlag() && cModem::get()->insertPUK(cNVM::get()->getSimPuk(), cNVM::get()->getSimPin()))
 		{
-			cyg_uint8 p;
-			t->data(&p, 1);
-			port = p;
+			//wait for PIN accepted
+			cyg_thread_delay(500);
+			cModem::get()->updateStatus();
 		}
-
-		if(t->id() == RMMdict::TAG_DIFF_RANGE)
+		else
 		{
-			t->data(&range, 4);
-		}
-
-		if(t->id() == RMMdict::TAG_INPUT_UPPER)
-		{
-			t->data(&upper, 4);
-		}
-
-		if(t->id() == RMMdict::TAG_INPUT_LOWER)
-		{
-			t->data(&lower, 4);
-		}
-
-
-		if(t->id() == RMMdict::TAG_LOG_INTERVAL)
-		{
-			t->data(&logTime, 4);
-		}
-
-		t = m->nextTag();
-	}
-
-	//set port range
-	if(port >= 0 && range != 0)
-	{
-		cNVM::get()->setSampleRange(port, range);
-		if(mDebugLevel >= 1)
-		{
-			printf("Try set DIFF_RANGE to %0.1f on port %d\n", range, port);
+			cNVM::get()->setSimPukFlag(true);
+			diag_printf("SYSMON: SIM blocked, PUK needed\n");
+			return cLED::PUKerr;
 		}
 	}
+	break;
 
-	//set port upper limit
-	if(port >= 0 && upper < 600)
-	{
-		cNVM::get()->setUpperLimit(port, upper);
-		if(mDebugLevel >= 1)
+	case cModem::SIMpin:
+		if(cModem::get()->insertPIN(cNVM::get()->getSimPin()))
 		{
-			printf("Try set INPUT_UPPER to %0.1f on port %d\n", upper, port);
-		}
-	}
+			//wait for PIN accepted
+			cNVM::get()->setSimPukFlag(false);
+			cyg_thread_delay(500);
 
-	//set port lower limit
-	if(port >= 0 && lower > -600)
-	{
-		cNVM::get()->setLowerLimit(port, lower);
-		if(mDebugLevel >= 1)
+			cModem::get()->updateStatus();
+		}
+		else
 		{
-			printf("Try set INPUT_LOWER to %0.1f on port %d\n", lower, port);
+			diag_printf("SYSMON: incorrect PIN\n");
+			return cLED::PINerr;
 		}
+		break;
+
+	case cModem::SIMready:
+		break;
 	}
 
-	//set log interval
-	if(logTime)
-	{
-		cNVM::get()->setLogPeriod(logTime);
-		dbg_printf(2, "Try set LOG_INTERVAL to %d\n", logTime);
-	}
+	return (cLED::eLEDstatus)0;
 
-	return false;
 }
 
-bool cSysMon::handleSetTime(uKMsg *m)
+void cSysMon::setPowerStat(cTerm & term, int argc,char * argv[])
 {
-	if(!m)
-		return false;
-
-	diag_printf("Valid set system time Message\n");
-
-	//set the time
-	time_t now = 0;
-	uKTag* t = m->firstTag();
-	while(t)
-	{
-		if(t->id() == RMMdict::TAG_TIME)
-		{
-			t->data(&now, 4);
-			break;
-		}
-
-		t = m->nextTag();
-	}
-
-	if(now)
-	{
-		//diag_printf("Time in message: %s", ctime(&now));
-		cRTC::get()->setTime(&now);
-		return true;
-	}
-
-
-	return false;
-}
-
-bool cSysMon::handleSetHobbs(uKMsg *m)
-{
-	if(!m)
-		return false;
-
-	diag_printf("Valid set Hobbs time Message\n");
-
-	cyg_uint8 port = 0xFF;
-	cyg_uint32 onTime = 0xFFFFFFFF;
-
-	uKTag* t = m->firstTag();
-	while(t)
-	{
-		switch(t->id())
-		{
-			case RMMdict::TAG_PORT_NUM:
-				t->data(&port, 1);
-				break;
-
-			case RMMdict::TAG_TIME:
-				t->data(&onTime, 4);
-				break;
-
-			default:
-				break;
-		}
-
-		t = m->nextTag();
-	}
-
-	if(port != 0xFF && onTime != 0xFFFFFFFF)
-	{
-		cHobbsTimer::get()->setTime(port, onTime);
-		return true;
-	}
-
-
-	return false;
-}
-
-
-bool cSysMon::isMyMessage(uKMsg *m)
-{
-	if(!m)
-		return false;
-
-	cyg_uint32 sn = 0;
-	cyg_uint64 box = 0;
-	uKTag* t = m->firstTag();
-	while(t)
-	{
-		if(t->id() == RMMdict::TAG_RMM_SERIAL)
-		{
-			t->data(&sn, 4);
-			dbg_printf(2, "RMM Serial: 0x%08X\n", sn);
-			if(sn != cNVM::get()->getSerial())
-				sn = 0;
-		}
-
-		if(t->id() == RMMdict::TAG_BOX_SERIAL)
-		{
-
-			t->data(&box, 8);
-			dbg_printf(2, "Got Box %10llu\n", box);
-			if(box != cNVM::get()->getBoxSerial())
-				box = 0;
-		}
-
-		if(sn && box)
-			break;
-
-		t = m->nextTag();
-	};
-
-	return (sn && box);
-}
-
-bool cSysMon::insertCfg(cyg_uint16 &idx, cyg_uint8* buff,  cyg_uint16 buffLen)
-{
-	cyg_uint16 len = buffLen;
-	cyg_uint32 val;
-	cyg_uint8* p;
-
-	uKMsg m(RMMdict::MsgDict, RMMdict::MSG_SET_MDM_CNF);
-	val = cNVM::get()->getSerial();
-	m.addTag(new uKTag(RMMdict::TagDict, RMMdict::TAG_RMM_SERIAL, &val));
-	cyg_uint64 box =  cNVM::get()->getBoxSerial();
-	m.addTag(new uKTag(RMMdict::TagDict, RMMdict::TAG_BOX_SERIAL, &box));
-//	cyg_uint8 version[3];
-//	version[0] = (cNVM::get()->getVersion() & 0xFF0000)>>16;
-//	version[1] = (cNVM::get()->getVersion() & 0xFF00)>>8;
-//	version[2] = (cNVM::get()->getVersion() & 0xFF);
-//	m.addTag(new uKTag(RMMdict::TagDict, RMMdict::TAG_VERSION_STRING, &version));
-	val = cNVM::get()->getVersion() ;
-	m.addTag(new uKTag(RMMdict::TagDict, RMMdict::TAG_VERSION_STRING, &val));
-	p = (cyg_uint8*)cNVM::get()->getSimCell();
-	m.addTag(new uKTag(RMMdict::TagDict, RMMdict::TAG_CELL, p));
-	p = (cyg_uint8*)cNVM::get()->getSimPin();
-	m.addTag(new uKTag(RMMdict::TagDict, RMMdict::TAG_PIN, p));
-	p = (cyg_uint8*)cNVM::get()->getSimPuk();
-	m.addTag(new uKTag(RMMdict::TagDict, RMMdict::TAG_PUK, p));
-
-	//m.print();
-	len = m.getBuff(&buff[idx + 1], len);
-
-	if((idx + len + 2) > buffLen)
-		return false;
-
-	buff[idx + len + 1] = cCrc::crc8(&buff[idx + 1], len);
-	buff[idx] = len;
-	len++;
-	idx += len + 1;
-
-	return true;
-}
-
-bool cSysMon::insertTime(cyg_uint8 port, cyg_uint16 &idx, cyg_uint8* buff,  cyg_uint16 buffLen)
-{
-	cyg_uint16 len = buffLen;
-	cyg_uint32 val;
-
-	uKMsg m(RMMdict::MsgDict, RMMdict::MSG_SET_HOBBS_TIME);
-	val = cNVM::get()->getSerial();
-	m.addTag(new uKTag(RMMdict::TagDict, RMMdict::TAG_RMM_SERIAL, &val));
-	cyg_uint64 box =  cNVM::get()->getBoxSerial();
-	m.addTag(new uKTag(RMMdict::TagDict, RMMdict::TAG_BOX_SERIAL, &box));
-	val = port;
-	m.addTag(new uKTag(RMMdict::TagDict, RMMdict::TAG_PORT_NUM, &val));
-	val = cHobbsTimer::get()->getTime(port);
-	m.addTag(new uKTag(RMMdict::TagDict, RMMdict::TAG_TIME, &val));
-//	m.print();
-	len = m.getBuff(&buff[idx + 1], len);
-
-	if((idx + len + 2) > buffLen)
-		return false;
-
-	buff[idx + len + 1] = cCrc::crc8(&buff[idx + 1], len);
-	buff[idx] = len;
-	len++;
-	idx += len + 1;
-
-	return true;
-}
-
-bool cSysMon::insertEvent(cEvent* e, cyg_uint16 &idx, cyg_uint8* buff,  cyg_uint16 buffLen)
-{
-	cyg_uint16 len = buffLen;
-	cyg_uint32 val;
-
-	if(!e)
-		return false;
-
-	if(e->getType() == cEvent::EVENT_TEMP)
-	{
-		uKMsg m(RMMdict::MsgDict, RMMdict::MSG_SET_SAMPLE);
-		val = cNVM::get()->getSerial();
-		m.addTag(new uKTag(RMMdict::TagDict, RMMdict::TAG_RMM_SERIAL, &val));
-		cyg_uint64 box = cNVM::get()->getBoxSerial();
-		m.addTag(new uKTag(RMMdict::TagDict, RMMdict::TAG_BOX_SERIAL, &box));
-
-		val = e->getSeq();
-		m.addTag(new uKTag(RMMdict::TagDict, RMMdict::TAG_SEQUENCE, &val));
-		val = e->getPort();
-		m.addTag(new uKTag(RMMdict::TagDict, RMMdict::TAG_PORT_NUM, &val));
-		val = e->getTimeStamp();
-		m.addTag(new uKTag(RMMdict::TagDict, RMMdict::TAG_TIME, &val));
-		float temp = e->getTemp();
-		unsigned char* p = (unsigned char*)&temp;
-		memcpy(&val, p, 4);
-		m.addTag(new uKTag(RMMdict::TagDict, RMMdict::TAG_DEGREE, &val));
-
-		//    m.print();
-		len = m.getBuff(&buff[idx + 1], len);
-	}
-
-	if(e->getType() == cEvent::EVENT_INPUT)
-	{
-		uKMsg m(RMMdict::MsgDict, RMMdict::MSG_SET_INPUT_STATE);
-		val = cNVM::get()->getSerial();
-		m.addTag(new uKTag(RMMdict::TagDict, RMMdict::TAG_RMM_SERIAL, &val));
-		cyg_uint64 box = cNVM::get()->getBoxSerial();
-		m.addTag(new uKTag(RMMdict::TagDict, RMMdict::TAG_BOX_SERIAL, &box));
-
-		val = e->getSeq();
-		m.addTag(new uKTag(RMMdict::TagDict, RMMdict::TAG_SEQUENCE, &val));
-		val = e->getPort();
-		m.addTag(new uKTag(RMMdict::TagDict, RMMdict::TAG_PORT_NUM, &val));
-		val = e->getTimeStamp();
-		m.addTag(new uKTag(RMMdict::TagDict, RMMdict::TAG_TIME, &val));
-		cyg_uint8 state = e->getState();
-		m.addTag(new uKTag(RMMdict::TagDict, RMMdict::TAG_INPUT_STATE, &state));
-
-		//    m.print();
-		len = m.getBuff(&buff[idx + 1], len);
-	}
-
-
-
-    if((idx + len + 2) > buffLen)
-        return false;
-
-    buff[idx + len + 1] = cCrc::crc8(&buff[idx + 1], len);
-    buff[idx] = len;
-    len++;
-    idx += len + 1;
-
-    return true;
-}
-
-bool cSysMon::insertPwrChange(cyg_uint16 &idx, cyg_uint8* buff,  cyg_uint16 buffLen)
-{
-	cyg_uint16 len = buffLen;
-	cyg_uint32 val;
-	time_t powerDown = cRTC::get()->getPowerDown();
-	time_t powerUp = cRTC::get()->getPowerUp();
-
-	//Power was not lost, it was a system reset
-	if(powerUp == 0 || powerDown == 0)
-		return true;
-
-
-	uKMsg m(RMMdict::MsgDict, RMMdict::MSG_POWER_CHANGE);
-	val = cNVM::get()->getSerial();
-	m.addTag(new uKTag(RMMdict::TagDict, RMMdict::TAG_RMM_SERIAL, &val));
-	cyg_uint64 box = cNVM::get()->getBoxSerial();
-	m.addTag(new uKTag(RMMdict::TagDict, RMMdict::TAG_BOX_SERIAL, &box));
-
-	val = powerDown;
-	m.addTag(new uKTag(RMMdict::TagDict, RMMdict::TAG_POWER_DOWN, &val));
-	val = powerUp;
-	m.addTag(new uKTag(RMMdict::TagDict, RMMdict::TAG_POWER_UP, &val));
-
-	//    m.print();
-	len = m.getBuff(&buff[idx + 1], len);
-
-	if((idx + len + 2) > buffLen)
-		return false;
-
-	buff[idx + len + 1] = cCrc::crc8(&buff[idx + 1], len);
-	buff[idx] = len;
-	len++;
-	idx += len + 1;
-
-
-	diag_printf("SESSION: POWER FAIL ADDED\n");
-	return true;
-}
-
-
-bool cSysMon::waitReply(cyg_uint8* buff, cyg_uint16 len)
-{
-	cyg_uint8 cnt = 0;
-
-	do
-	{
-		dbg_printf(1, "send msg\n");
-		dbg_printf(3, "SYSMON: TX: %d\n", len);
-		dbg_dump_buf(3, buff,len);
-
-		mRXlen = 0;
-		replied = false;
-		cyg_uint16 sent = cModem::get()->send(buff, len);
-		dbg_printf(1, "msg sent\n");
-
-		if(!replied)
-		{
-			cyg_uint32 t = cyg_current_time();
-			if(sent > 0 && cyg_cond_timed_wait(&mWaitCond, t + 5000))
-			{
-				return true;
-			}
-			else
-			{
-				diag_printf("SYSMON: Timed out\n");
-			}
-		}
-		else if(mRXlen > 0)
-			return true;
-
-	}while(cnt++ < 3);
-
-	return false;
-}
-
-void cSysMon::dataReceived(cyg_uint8 *buff, cyg_uint16 len)
-{
-	while(replied)
-			cyg_thread_delay(10);
-
-	if(len > 0)
-	{
-		cyg_mutex_lock(&mBuffMutex);
-
-		mRXlen = len;
-		memcpy(mRXbuff, buff, len);
-
-		cyg_mutex_unlock(&mBuffMutex);
-
-		replied = true;
-		cyg_cond_signal(&mWaitCond);
-	}
-}
-
-/**This determines whether the modem should be switched off
- * after logs have been loaded to the RMM server
- */
-void cSysMon::setPowerStat(bool stat)
-{
-	mPowerStat = stat;
-}
-
-void cSysMon::showStat()
-{
-	dbg_printf(green, "Sysmon status\n");
-	diag_printf(" - Last transfer %s", ctime(&mLastSession));
-	diag_printf(" - Session Update period: %ds\n", cNVM::get()->getLogPeriod());
-	diag_printf(" - Upload fail Count: %d\n", mUploadFailCnt);
-
-	diag_printf(" - Modem pwrStat:\n ");
-	if(mPowerStat)
-		dbg_printf(green, "\t\tON");
-	else
-		dbg_printf(red, "\t\tOFF");
-}
-
-void cSysMon::printMessage(uKMsg* m)
-{
-	if(!m)
+	if(!_instance)
 		return;
 
-	switch(m->id())
+	if(argc > 1)
 	{
-		case RMMdict::MSG_SET_TIME:
-			diag_printf("Valid SET_TIME msg\n");
-			break;
-		case RMMdict::MSG_SET_LOG_CNF:
-			diag_printf("Valid LOG_CNF msg\n");
-			break;
-		case RMMdict::MSG_SET_SAMPLE:
-			diag_printf("Valid SET msg\n");
-			break;
+		bool flag = strtoul(argv[1],NULL,10);
+		term<<"pressing modem pwrKey button - ";
 
-		case RMMdict::MSG_REQ:
-			diag_printf("Valid REGUEST msg\n");
-			break;
+		if(flag)
+		{
+			term<<"on\n";
+		}
+		else
+		{
+			term<<"off\n";
+		}
 
-		case RMMdict::MSG_ACK:
-			diag_printf("Valid Acknowledge msg\n");
-			break;
-
-		default:
-			diag_printf("Unknown msg ID: 0x%02X\n", m->id());
-			return;
-	}
-
-	uKTag *t = m->firstTag();
-    while(t)
-    {
-    	switch(t->id())
-    	{
-    		case RMMdict::TAG_RMM_SERIAL:
-    		{
-    			cyg_uint32 sn;
-    			t->data(&sn, 4);
-    			diag_printf("RMM Serial: 0x%08X\n", sn);
-    		}
-    			break;
-
-    		case RMMdict::TAG_BOX_SERIAL:
-    		{
-    			cyg_uint32 sn;
-    			t->data(&sn, 4);
-    			diag_printf("BOX Serial: 0x%08X\n", sn);
-    		}
-    			break;
-
-    		case RMMdict::TAG_PORT_NUM:
-    		{
-    			cyg_uint8 num;
-    			t->data(&num, 1);
-    			diag_printf("PORT #: %d\n", num);
-    		}
-    			break;
-
-    		case RMMdict::TAG_TIME:
-    		{
-    			time_t time;
-    			t->data((cyg_uint8*)&time, 4);
-    			diag_printf("TIME: %s", ctime(&time));
-    		}
-    			break;
-
-    		case RMMdict::TAG_SEQUENCE:
-    		{
-    			cyg_uint32 s;
-    			t->data(&s, 4);
-    			diag_printf("Sequence: 0x%08X\n", s);
-    		}
-    			break;
-
-    		case RMMdict::TAG_DEGREE:
-    		{
-    			float sample;
-    			t->data(&sample, 4);
-    			printf("Degree: %0.1f\n", sample);
-    		}
-    			break;
-
-    		case RMMdict::TAG_DIFF_RANGE:
-    		{
-    			float range;
-    			t->data(&range, 4);
-    			printf("Range: %0.1f\n", range);
-    		}
-    			break;
-
-    		case RMMdict::TAG_LOG_INTERVAL:
-    		{
-    			time_t time;
-    			t->data((cyg_uint8*)&time, 4);
-    			diag_printf("TIME: %d\n", time);
-    		}
-    			break;
-
-    		default:
-    			break;
-    	}
-
-        t = m->nextTag();
-    }
-    ;
-}
-
-time_t cSysMon::getLastSync()
-{
-	return mLastSession;
-}
-
-void cSysMon::setUploadDone(bool stat)
-{
-	if(stat)
-	{
-	cLED::get()->indicate(cLED::idle);
-	mUploadFailCnt = 0;
-
-	dbg_printf(green, "SESSION: Transfer set as Successful\n");
-
-	mLastSession = cRTC::get()->timeNow();
-	}
-	else
-	{
-		cLED::get()->indicate(cLED::connecting);
-		mUploadFailCnt = 0;
-
-		dbg_printf(green, "SESSION: Transfer set as pending\n");
-
-		mLastSession = 0;
+		cModem::get()->power(flag);
 	}
 }
+
+
 
 cSysMon::~cSysMon()
 {

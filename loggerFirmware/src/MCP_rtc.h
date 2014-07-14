@@ -4,6 +4,7 @@
 #include <cyg/io/i2c_stm32.h>
 #include <time.h>
 
+#include "term.h"
 #include "debug.h"
 
 class cRTC : public cDebug
@@ -41,6 +42,8 @@ public:
 
 	time_t getPowerDown();
 	time_t getPowerUp();
+
+	static void  set(cTerm & term, int argc,char * argv[]);
 
 };
 

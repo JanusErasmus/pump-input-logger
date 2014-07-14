@@ -13,13 +13,15 @@ cMdm_cmd::cMdm_cmd( const char * fmt,...)
 	vsnprintf(mTempStr, 64, fmt,vl);
 	va_end(vl);
 	mCMD = mTempStr;
+	mRxBuff = 0;
+	mRxLen = 0;
 
-	//printf("CMD: %s\n",mCMD);
 	cyg_thread_delay(150);
 
-	replied = false;
-	cyg_mutex_init(&mWaitMutex);
-	cyg_cond_init(&mWaitCond, &mWaitMutex);
+	cyg_semaphore_init(&mWaitSema, 0);
+
+	cyg_mutex_init(&mDataHandleMutex);
+	cyg_cond_init(&mDataHandleCond, &mDataHandleMutex);
 
 	cyg_mutex_init(&mBuffMutex);
 }
@@ -31,91 +33,99 @@ cyg_uint8* cMdm_cmd::getCMD()
 
 bool cMdm_cmd::waitReply()
 {
-	if(!replied)
-	{
-		cyg_uint32 timer = cyg_current_time();
-		//diag_printf(".");
-		cyg_cond_timed_wait(&mWaitCond, timer + 200);
-	}
-
-	return replied;
+	return cyg_semaphore_timed_wait(&mWaitSema, cyg_current_time() + 500);
 }
 
 bool cMdm_cmd::execute()
 {
 	bool stat = false;
-	int cmdCnt = 0;
+	bool cmdDone = false;
+	cyg_tick_count_t startCmd =  cyg_current_time();
 
 	//diag_printf("sending CMD: %d: %s \n", strlen(mCMD), mCMD);
-	replied = false;
 	cModem::get()->write(mCMD);
 
-	do
+	//handle all commands until OK or ERROR is received
+	while(!cmdDone)
 	{
-		//printf("cmdC: %d\n", cmdCnt);
 		if(waitReply())
 		{
-			//diag_printf("cmdX: %s\n", (char*) mRxBuff);
-
-			cmdCnt = 0;  //got reply so handle it
+			//got reply so handle it
 			if(mRxLen > 0)
 			{
-				switch(getResponse())
+				//diag_printf("cmdRX: %s\n", (char*) mRxBuff);
+
+				switch(getResponse((const char*)mRxBuff))
 				{
-					case ok:
-						//diag_printf("+");
-						stat =  true;
-						cmdCnt = 10;
-						break;
+				case ok:
+					//diag_printf("+");
+					stat =  true;
+					cmdDone = true;
+					break;
 
-					case err:
-						//diag_printf("-");
-						stat = false;
-						cmdCnt = 10;
-						break;
+				case err:
+					//diag_printf("-");
+					stat = false;
+					cmdDone = true;
+					break;
 
-					default:
-						if(handleResponse((const char*)mRxBuff))
-						{
-							stat = true;
-							cmdCnt = 10;
-						}
-						break;
+				default:
+					if(handleResponse((const char*)mRxBuff))
+					{
+						stat = true;
+						cmdDone = true;
+					}
+					break;
 				}
 
-				replied = false;
+				startCmd = cyg_current_time();
+			}
+			else
+			{
+				cmdDone = true;
+				diag_printf("MDM_CMD: 0 length reply received\n");
 			}
 		}
-	}while(cmdCnt++ < 3);
+		else
+		{
+			diag_printf("MDM_CMD: wait timed out\n");
 
-	if(cmdCnt == 10)
-	{
-		diag_printf("Timed out\n");
+			if(startCmd + 1500 <  cyg_current_time())
+						break;
+		}
+
+		//signal handle data that data has been used and new data could be received
+		cyg_cond_signal(&mDataHandleCond);
+
 	}
+
 
 	return stat;
 }
 
 void cMdm_cmd::handleData(cyg_uint8* data, int len)
 {
-	while(replied)
-		cyg_thread_delay(10);
+//	memcpy(mRxBuff, data, len);
+//	mRxBuff[len] = 0;
 
-	//diag_printf("cmdH: %s\n", data);
-
-	memcpy(mRxBuff, data, len);
-	mRxBuff[len] = 0;
 	mRxLen = len;
+	mRxBuff = data;
 
-	replied = true;
-	cyg_cond_signal(&mWaitCond);
+	cyg_semaphore_post(&mWaitSema);
+
+	//wait until command has handled this data
+	cyg_mutex_lock(&mDataHandleMutex);
+	if(!cyg_cond_timed_wait(&mDataHandleCond ,cyg_current_time() * 2000))
+		diag_printf("MDM_CMD: Command timed out\n");
+	cyg_mutex_unlock(&mDataHandleMutex);
+
 }
 
-cMdm_cmd::eMdm_response cMdm_cmd::getResponse()
+cMdm_cmd::eMdm_response cMdm_cmd::getResponse(const char* response)
 {
-	if(!strcmp((char*)mRxBuff, "OK\r"))
+	if(!strcmp(response, "OK\r"))
 		return ok;
-	else if(!strcmp((char*)mRxBuff, "ERROR\r"))
+	else if(!strcmp(response, "ERROR\r"))
 		return err;
 
 	return unknown;
@@ -177,14 +187,14 @@ int cMdm_cmd::waitData(char* buff)
 
 	if(waitReply())
 	{
-		memcpy(buff, mRxBuff, mRxLen);
+		//memcpy(buff, mRxBuff, mRxLen);
+		mRxBuff = (cyg_uint8*)buff;
 		len = mRxLen;
 
 		mRxBuff[len] = 0;
 		mRxLen = len;
 
-		replied = false;
-		cyg_cond_signal(&mWaitCond);
+		cyg_semaphore_post(&mWaitSema);
 	}
 
 	return len;
@@ -217,6 +227,106 @@ bool cMdmGetID::handleResponse(const char* response)
 cMdmSetEcho::cMdmSetEcho(bool stat)
 	: cMdm_cmd("ATE%d\n", stat)
 {
+}
+
+cMdmGetPBCount::cMdmGetPBCount()  : cMdm_cmd("AT+CPBS?\n")
+{
+	mCount = 0;
+	mSize = 0;
+}
+
+bool cMdmGetPBCount::handleResponse(const char* response)
+{
+	char cmdReply[] = {"+CPBS:"};
+		int cmdLen = strlen(cmdReply);
+
+		//printf("%s - %s\n", response, statReply);
+
+		if(!strncmp(cmdReply, response, cmdLen))
+		{
+			//printf("response: %s\n", &response[cmdLen]);
+
+			char *argv[3];
+			int argc = 3;
+			util_parse_params((char*)&response[cmdLen],argv,argc,',',',');
+
+			if(argc > 2)
+			{
+				//parameter 1 is the entry count
+				mCount = atoi(argv[1]);
+				//parameter 1 is the pb size
+				mSize = atoi(argv[2]);
+
+			}
+		}
+
+		return false;
+}
+
+cMdmGetPB::cMdmGetPB(s_entry* list, int count)  : cMdm_cmd("AT+CPBR=1,%d\n", count)
+{
+	mList = list;
+	mCurrIdx = 0;
+	mCount = count;
+}
+
+bool cMdmGetPB::handleResponse(const char* response)
+{
+	char cmdReply[] = {"+CPBR:"};
+	int cmdLen = strlen(cmdReply);
+
+	//printf("%s - %s\n", response, statReply);
+
+	if(!strncmp(cmdReply, response, cmdLen))
+	{
+		//printf("response: %s\n", &response[cmdLen]);
+
+		char *argv[4];
+		int argc = 4;
+		util_parse_params((char*)&response[cmdLen],argv,argc,',',',');
+
+		if(argc > 3)
+		{
+			if(!&mList[mCurrIdx])
+				return false;
+
+			int len = strlen(argv[1]) - 2;
+			if(len < 40)
+			{
+				strncpy(mList[mCurrIdx].number, &argv[1][1], len);
+				mList[mCurrIdx].number[len] = 0;
+
+				//diag_printf("%s\n", mList[mCurrIdx].number);
+			}
+
+			len = strlen(argv[3]) - 3;
+			if(len < 16)
+			{
+				strncpy(mList[mCurrIdx].name, &argv[3][1], len);
+				mList[mCurrIdx].name[len] = 0;
+
+				//diag_printf("%s\n", mList[mCurrIdx].name);
+			}
+
+			mCurrIdx++;
+		}
+
+
+	}
+
+	if(mCount == mCurrIdx - 1)
+		return true;
+
+	return false;
+}
+
+cMdmUpdatePB::cMdmUpdatePB(int idx, const char* name, const char* number)  : cMdm_cmd("AT+CPBW=%d,\"%s\",129,\"%s\"\n", idx, number, name)
+{
+}
+
+cMdmUpdatePB::cMdmUpdatePB(int idx)  : cMdm_cmd("AT+CPBW=%d\n", idx)
+{
+
 }
 
 cMdmSIMinserted::cMdmSIMinserted() : cMdm_cmd("AT+CSMINS?\n")
@@ -374,6 +484,38 @@ bool cMdmNetOperator::handleResponse(const char* response)
 	return false;
 }
 
+cMdmCallReady::cMdmCallReady() : cMdm_cmd("AT+CCALR?\n")
+{
+	mStat = false;
+}
+
+bool cMdmCallReady::handleResponse(const char* response)
+{
+	char cmdReply[] = {"+CCALR:"};
+	int cmdLen = strlen(cmdReply);
+
+
+	if(!strncmp(cmdReply,response,cmdLen))
+	{
+		//printf("response: %s\n", &response[cmdLen]);
+
+		char *argv[3];
+		int argc = 3;
+		util_parse_params((char*)&response[cmdLen],argv,argc,',',',');
+
+		if(argc > 0)
+		{
+			//parameter 0 is Call Ready
+			if(strtoul(argv[0],0,10) == 1)
+			{
+				mStat = true;
+			}
+		}
+	}
+
+	return false;
+}
+
 cMdmNetRegistration::cMdmNetRegistration() : cMdm_cmd("AT+CREG?\n")
 {
 	mStat = false;
@@ -406,6 +548,201 @@ bool cMdmNetRegistration::handleResponse(const char* response)
 	}
 
 	return false;
+}
+
+cMdmPlaceCall::cMdmPlaceCall(const char* number) : cMdm_cmd("ATD%s;\n", number)
+{
+}
+
+cMdmPlaceCall::cMdmPlaceCall(int pbIndex) :  cMdm_cmd("ATD>%d;\n", pbIndex)
+{
+}
+
+cMdmEndCall::cMdmEndCall() :  cMdm_cmd("ATH\n")
+{
+}
+
+cMdmUSSD::cMdmUSSD(const char* ussd) :  cMdm_cmd("AT+CUSD=1,\"%s\"\n", ussd)
+{
+}
+
+cMdmUSSDoff::cMdmUSSDoff() :  cMdm_cmd("AT+CUSD=0\n")
+{
+}
+
+cMdmSendSMS::cMdmSendSMS() :  cMdm_cmd("")
+{
+}
+
+bool cMdmSendSMS::send(const char* number, const char* text)
+{
+	char tempStr[64];
+	bool stat = false;
+	bool cmdDone = false;
+	cyg_tick_count_t startCmd =  cyg_current_time();
+
+	sprintf(tempStr,"AT+CMGS=\"%s\"\n", number);
+	cModem::get()->write(tempStr);
+	cyg_thread_delay(100);
+
+	cModem::get()->write(text);
+	cyg_thread_delay(100);
+	cModem::get()->write("\x1a");
+
+	//handle all commands until OK or ERROR is received
+		while(!cmdDone)
+		{
+			if(waitReply())
+			{
+				//got reply so handle it
+				if(mRxLen > 0)
+				{
+					//diag_printf("cmdRX: %s\n", (char*) mRxBuff);
+
+					switch(getResponse((const char*)mRxBuff))
+					{
+					case ok:
+						//diag_printf("+");
+						stat =  true;
+						cmdDone = true;
+						break;
+
+					case err:
+						//diag_printf("-");
+						stat = false;
+						cmdDone = true;
+						break;
+
+					default:
+						break;
+					}
+
+					startCmd = cyg_current_time();
+				}
+				else
+				{
+					cmdDone = true;
+					diag_printf("MDM_CMD: 0 length reply received\n");
+				}
+			}
+			else
+			{
+				diag_printf("MDM_CMD: wait timed out\n");
+
+				if(startCmd + 10000 <  cyg_current_time())
+							break;
+			}
+
+			//signal handle data that data has been used and new data could be received
+			cyg_cond_signal(&mDataHandleCond);
+		}
+
+	return stat;
+}
+
+cMdmReadSMS::cMdmReadSMS(sSMS ** list) :  cMdm_cmd("AT+CMGL=\"ALL\"\n")
+{
+	mSMSlist = list;
+	listIdx = 0;
+	smsString = false;
+}
+
+bool cMdmReadSMS::handleResponse(const char* response)
+{
+	char cmdReply[] = {"+CMGL:"};
+	int cmdLen = strlen(cmdReply);
+
+	if(listIdx > 5)
+	{
+		diag_printf("cMdmReadSMS: SMS list limited to 5\n");
+		return false;
+	}
+
+	if(smsString)
+	{
+		smsString = false;
+		if(mSMSlist[listIdx])
+		{
+			mSMSlist[listIdx]->setText(response);
+			//mSMSlist[listIdx]->show();
+
+			listIdx++;
+		}
+
+		return false;
+	}
+
+	if(!strncmp(cmdReply,response,cmdLen))
+	{
+		char *argv[5];
+		int argc = 5;
+		util_parse_params((char*)&response[cmdLen],argv,argc,',',',');
+
+		if(argc > 4)
+		{
+			mSMSlist[listIdx] = new sSMS(atoi(argv[0]), argv[2], argv[3], argv[4]);
+			smsString = true;
+		}
+	}
+
+
+	return false;
+
+}
+
+cMdmReadSMS::sSMS::sSMS(cyg_uint8 idx, const char* number, const  char* name, const char* time)
+{
+	cyg_uint8 len;
+
+	mIdx = idx;
+
+	len = strlen(number) - 2;
+	if(len >= 13)
+		len = 13;
+	strncpy(mNumber, &number[1], len);
+	mNumber[len] = 0;
+
+
+	len = strlen(name) - 2;
+	if(len >= 16)
+		len = 16;
+	strncpy(mName, &name[1], len);
+	mName[len] = 0;
+
+
+	len = strlen(time) - 3;
+	if(len >= 22)
+		len = 22;
+	strncpy(mTime, &time[1], len);
+	mTime[len] = 0;
+
+	mText[0] = 0;
+}
+
+void cMdmReadSMS::sSMS::setText(const char* text)
+{
+	cyg_uint8 len = strlen(text);
+	if(len >= 160)
+	{
+		strncpy(mText, text, 159);
+		mText[159] = 0;
+	}
+	else
+		strcpy(mText, text);
+}
+
+void cMdmReadSMS::sSMS::show()
+{
+	diag_printf("SMS[%d]\n", mIdx);
+	diag_printf(" - From: %s ", mNumber);
+	if(mName[0])
+		diag_printf("(%s)", mName);
+	diag_printf("\n - @ %s\n", mTime);
+	diag_printf(" ---> %s\n", mText);
+}
+
+cMdmDeleteSMS::cMdmDeleteSMS() : cMdm_cmd("AT+CMGD=1,3\n")
+{
 }
 
 cMdmGPRSattched::cMdmGPRSattched() : cMdm_cmd("AT+CGATT?\n")
@@ -744,6 +1081,8 @@ cMdmSetRXHeader::cMdmSetRXHeader(ipHeader h) : cMdm_cmd("AT+CIPHEAD=%d\n", h)
 
 cMdmSend::cMdmSend() : cMdm_cmd("")
 {
+	mLen = 0;
+	mBuff = 0;
 	//diag_printf("SEND: new\n");
 }
 
@@ -765,7 +1104,6 @@ int cMdmSend::send(void* buff, cyg_uint16 len)
 	cModem::get()->write(tempStr);
 	cyg_thread_delay(100);
 
-	replied = false;
 	len = cModem::get()->write(buff, len);
 	cModem::get()->write("\n");
 
@@ -789,12 +1127,10 @@ int cMdmSend::send(void* buff, cyg_uint16 len)
 					break;
 				}
 			}
-			replied = false;
 		}
 		//diag_printf("MDM: Time out\n");
 	}while(cmdCnt++ < 5);
 
-	replied = false;
 	return sentLen;
 }
 

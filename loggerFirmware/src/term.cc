@@ -27,15 +27,16 @@ cTerm::cTerm(char * dev,cyg_uint32 b_size,const char * const prompt_str)
 
     err = cyg_io_lookup(mDev,&mDevHandle);
 
-    diag_printf("TERM: Lookup error %s \n",strerror(-err));
+    diag_printf("cTerm(\"%s\") %p: %s \n", dev, mDevHandle, strerror(-err));
 
     len = sizeof(tty_info);
+
     cyg_io_get_config(mDevHandle,
                       CYG_IO_GET_CONFIG_TTY_INFO,
                       &tty_info,
                       &len);
 
-    //diag_printf("TERM: TTY in_flags = 0x%08X, out_flags = 0x%08X\n",tty_info.tty_in_flags,tty_info.tty_out_flags);
+    //diag_printf("cTerm: TTY in_flags = 0x%08X, out_flags = 0x%08X\n",tty_info.tty_in_flags,tty_info.tty_out_flags);
 
     tty_info.tty_in_flags = (CYG_TTY_IN_FLAGS_CR | CYG_TTY_IN_FLAGS_ECHO);
 
@@ -78,47 +79,10 @@ void cTerm::term_thread_func(cyg_addrword_t arg)
 {
     cTerm * t = (cTerm *)arg;
 
-
-
-
-//----------------------------DETERMINE VT100 ----------------------
-
-    if(t->isVT100())
-    {
-    	diag_printf("VT100 commands on\n");
-    	VT100flag = true;
-    }
-    else
-    {
-    	diag_printf("VT100 commands off\n");
-    }
-
-//--------------------------------------------------
-
     for (;;)
     {
         t->run();
     }
-}
-
-bool cTerm::isVT100()
-{
-	    cyg_uint8 len = strlen(VT100_ID);
-	    cyg_io_write(mDevHandle,VT100_ID,(cyg_uint32*)&len);
-	    cyg_thread_delay(10);//Wait for terminal to reply
-	    len = 1;
-	    memset(mRxBuff,0,10);
-	    cyg_io_read(mDevHandle,mRxBuff,(cyg_uint32*)&len);
-	    if(len > 0)
-	    {
-	    	//diag_dump_buf(mRxBuff,len);
-	    	if(mRxBuff[0] == 0x1B || mRxBuff[0] == 0xA3)
-	    	{
-	    		return true;
-	    	}
-	    }
-
-	    return false;
 }
 
 void cTerm::run(void)
@@ -133,7 +97,6 @@ void cTerm::run(void)
     if ( mRxIdx >= 1 )
     {
     	process_command_line();
-
     }
     prompt();
 }
@@ -202,11 +165,7 @@ void cTerm::banner()
 
 void cTerm::prompt()
 {
-	if(VT100flag)
-		*this<<VT100_BLUE;
 	*this<<"\n"<<mPrompt;
-	if(VT100flag)
-		*this<<VT100_NONE;
 }
 
 

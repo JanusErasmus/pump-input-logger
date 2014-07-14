@@ -1,7 +1,7 @@
 #include <cyg/kernel/diag.h>
+#include <cyg/io/flash.h>
 
 #include "log.h"
-#include "spi_flash.h"
 #include "led.h"
 #include "event.h"
 #include "utils.h"
@@ -30,7 +30,7 @@ cLog::cLog(cyg_uint32 sectorStart)
 
 	mStartAddr = sectorStart;
 	dbg_printf(1,"LOG: Start at 0x%08X\n",mStartAddr);
-	mEndAddr = (SpiFlash::get()->GetNumSect() * SpiFlash::get()->GetSectSize());
+	mEndAddr = 0x40000;
 	dbg_printf(1,"LOG: End at 0x%08X\n",mEndAddr);
 	diag_printf("LOG: Space for %d events\n",(int)((mEndAddr - mStartAddr)/sizeof(sEventData)));
 
@@ -83,8 +83,9 @@ void cLog::logEvent(cEvent *e)
    dbg_printf(1, "LOG: Log evt %d @ 0x%08X\n",e->getSeq(), mCurrAddr);
 
 
-   if(!SpiFlash::get()->WriteSpi(mCurrAddr,(cyg_uint8 *)&evt_data,sizeof(sEventData)))
+   if(!cyg_flash_program(mCurrAddr,(cyg_uint8 *)&evt_data,sizeof(sEventData), NULL))
 	   return;
+
    dbg_printf(2, "\nW Log @ %p len: %d\n", mCurrAddr, sizeof(sEventData));
    dbg_dump_buf(2, (cyg_uint8 *)&evt_data,sizeof(sEventData));
    dbg_printf(2, "\n");
@@ -92,13 +93,6 @@ void cLog::logEvent(cEvent *e)
    inc_curr_addr();
 
    cyg_mutex_unlock(&mLogMutex);
-
-   //when there is more than 2000 logs, send them NOW
-   if(count() > 2000)
-   {
-	   diag_printf("LOG: Transferring events, > 2000 logs");
-	   cSysMon::get()->setUploadDone(0);
-   }
 
 }
 
@@ -112,8 +106,6 @@ cyg_bool cLog::find_entry(cyg_uint32 start, cyg_uint32 &entry_addr, cyg_bool val
 //   diag_printf("start: 0x%08X\n",start);
    do
    {
-	   cLED::get()->toggleLED();
-
       if((ctr%8) == 0)
       {
 //         diag_printf("log: 0x%08X\n ",curr_addr);
@@ -122,7 +114,7 @@ cyg_bool cLog::find_entry(cyg_uint32 start, cyg_uint32 &entry_addr, cyg_bool val
       entry_addr = curr_addr;
 //      diag_printf("log?: 0x%08X\n",entry_addr);
 
-      if(!SpiFlash::get()->ReadSpi(entry_addr,(cyg_uint8 *)&evt_data,sizeof(evt_data)))
+      if(!cyg_flash_read(entry_addr,(cyg_uint8 *)&evt_data,sizeof(evt_data), NULL))
     	  return false;
 
       //when sequence default value its end of sequences
@@ -157,7 +149,7 @@ cyg_bool cLog::check_space(cyg_uint32 addr)
    //diag_printf("len: %d\n", len);
    cyg_uint8 buff[len];
 
-   SpiFlash::get()->ReadSpi(addr,buff,len);
+   cyg_flash_read(addr,buff,len, NULL);
 
    for(cyg_uint32 i = 0;i<len;i++)
    {
@@ -173,7 +165,7 @@ cyg_bool cLog::check_space(cyg_uint32 addr)
 void cLog::make_space(cyg_uint32 addr)
 {
 	dbg_printf(1, "Erased @ 0x%08X\n", addr);
-	SpiFlash::get()->flash_erase(addr);
+	cyg_flash_erase(addr, 1, NULL);
 }
 
 void cLog::inc_curr_addr()
@@ -194,7 +186,7 @@ void cLog::inc_curr_addr()
 //	cyg_uint32 thisSector = curr_addr/SpiFlash::get()->GetSectSize();
 //	cyg_uint32 nextSector = next_addr/SpiFlash::get()->GetSectSize();
 //	if(thisSector != nextSector)
-	if((next_addr % SpiFlash::get()->GetSectSize()) == 0)
+	if((next_addr % 0x10000) == 0)
 	{
 		dbg_printf(1, "Crossed a Sector @ 0x%08X\n", next_addr);
 		if(!check_space(next_addr))
@@ -223,7 +215,7 @@ void cLog::set_sequence()
    }
 
    addr -= sizeof(sEventData);
-   SpiFlash::get()->ReadSpi(addr,(cyg_uint8 *)&evt_data,sizeof(sEventData));
+   cyg_flash_read(addr,(cyg_uint8 *)&evt_data,sizeof(sEventData), NULL);
    seq = evt_data.mSeq;
    diag_printf("LOG: Found sequence 0x%08X\n",seq);
    seq++;
@@ -235,7 +227,7 @@ cyg_bool cLog::readEvent(cEvent *e)
 	cyg_mutex_lock(&mLogMutex);
 
    sEventData evt_data;
-   if(!SpiFlash::get()->ReadSpi(mReadAddr,(cyg_uint8 *)&evt_data,sizeof(sEventData)))
+   if(!cyg_flash_read(mReadAddr,(cyg_uint8 *)&evt_data,sizeof(sEventData), NULL))
 	   return false;
 
    dbg_printf(2, "\nR Log @ %p len: %d\n", mReadAddr, sizeof(sEventData));
@@ -290,13 +282,13 @@ cyg_bool cLog::acknowledge()
    readEvent(&evt);
    evt.setProcessed();
    sEventData evt_data = evt.getData();
-   SpiFlash::get()->WriteSpi(mReadAddr,(cyg_uint8 *)&evt_data,sizeof(sEventData));
+   cyg_flash_program(mReadAddr,(cyg_uint8 *)&evt_data,sizeof(sEventData), NULL);
 
    //when last log in final sector has been acknowledged, erase sector
    if(mReadAddr + sizeof(cEvent) + sizeof(cEvent) > mEndAddr)
    {
 	   diag_printf("Last sector erased\n");
-	   SpiFlash::get()->flash_erase(mReadAddr);
+	   cyg_flash_erase(mReadAddr, 1, NULL);
    }
 
 
@@ -342,7 +334,7 @@ void cLog::showLogs()
 	 sEventData evt_data;
 	 do
 	 {
-		 if(!SpiFlash::get()->ReadSpi(tail_addr,(cyg_uint8 *)&evt_data,sizeof(sEventData)))
+		 if(!cyg_flash_read(tail_addr,(cyg_uint8 *)&evt_data,sizeof(sEventData), NULL))
 			 return;
 		 dbg_printf(2, "\nR Log @ %p len: %d\n", tail_addr, sizeof(sEventData));
 		 dbg_dump_buf(2, (cyg_uint8 *)&evt_data,sizeof(sEventData));

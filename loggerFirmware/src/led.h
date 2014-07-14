@@ -1,11 +1,18 @@
 #ifndef LED_H_
 #define LED_H_
-
+#include <cyg/kernel/kapi.h>
+#include "definitions.h"
 #include "watchdog.h"
 
 class cLED
 {
-public:
+public :
+	struct ledPins_s
+	{
+		cyg_uint8 greenPin;
+		cyg_uint8 redPin;
+	};
+
 	enum eLEDstatus
 	{
 		idle = 1,
@@ -18,40 +25,56 @@ public:
 		invalidFrame = 8,
 		couldNotPwrModem = 9,
 		connecting,
-		transfering
+		transfering,
+		alarm,
+		walkOut
 	};
 
 private:
-	static cLED* _instance;
-	cLED();
+	enum eLEDcolor
+	{
+		red,
+		green,
+		off
+	};
 
-	cyg_bool mStarted;
-
-	eLEDstatus mStatus;
+	cLED(ledPins_s* pinNumbers, cyg_uint8 pinCount);
+	static cLED* __instance;
 	cyg_mutex_t mStatMutex;
-	cyg_uint32 mLED_h;
-	cyg_uint32 mLED_l;
+	eLEDstatus mStatus;
+
+	cyg_bool mLEDenabled;
+	cyg_uint8 mLEDCnt;
+	ledPins_s* mLEDList;
+
+	cyg_uint8 mLEDStack[LED_STACK_SIZE];
+	cyg_thread mLEDThread;
+	cyg_handle_t mLEDThreadHandle;
+	static void led_thread(cyg_addrword_t args);
 
 	wdKicker* mWatchDog;
 
-	void setGreen();
-	void setRed();
+	void setupPorts(ledPins_s* ports, cyg_uint8 count);
 
-public:
-
-	static void init();
-	static cLED* get();
-
-	void start();
+	void setLED(cyg_uint8, eLEDcolor);
 
 	void animate();
-	void toggleLED();
+	void animateWalkout();
+	void animateTest();
+	void animateIdle();
+	void animateFlicker(eLEDcolor c);
+	void animateError(cyg_uint8 error);
 
+
+public:
+	static void init(ledPins_s* pinNumbers, cyg_uint8 pinCount);
+	static cLED* get();
+
+	void disable(){ mLEDenabled = false; };
+	void enable(){ mLEDenabled = true; };
 	void indicate(eLEDstatus stat);
 
-	eLEDstatus getStatus();
-
-	virtual ~cLED();
+	void showIO(cyg_uint8, bool);
 };
 
 #endif /* LED_H_ */

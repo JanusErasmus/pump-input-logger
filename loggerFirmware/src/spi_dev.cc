@@ -1,3 +1,5 @@
+#include <cyg/io/at25dfxxx.h>
+
 #include "spi_dev.h"
 
 cyg_spi_cortexm_stm32_device_t stm32_flash_dev CYG_SPI_DEVICE_ON_BUS(1)=
@@ -17,3 +19,30 @@ cyg_spi_cortexm_stm32_device_t stm32_flash_dev CYG_SPI_DEVICE_ON_BUS(1)=
     tr_bt_udly    : 0          // delay in usec between two transfers
 };
 
+
+
+struct cyg_flash_block_info dataflash0_block_info;
+static struct cyg_flash_dev dataflash0 CYG_HAL_TABLE_ENTRY(cyg_flashdev) =
+{
+		funs : &cyg_devs_flash_spi_at25dfxxx_funs,
+		flags : 0,
+		start : 0,
+		end : 0x80000,
+		num_block_infos : 1,
+		block_info : &dataflash0_block_info,
+		priv : (const void*) &(stm32_flash_dev.spi_device)
+};
+
+
+void spi_dev_global_unprotect()
+{
+	cyg_spi_device* dev = &stm32_flash_dev.spi_device;
+	cyg_uint8 tx_buff[4];
+
+	tx_buff[0] = 0x06;
+	cyg_spi_transfer(dev,false,1,tx_buff,NULL);
+
+	tx_buff[0] = 0x01;
+	tx_buff[1] = 0x00;
+	cyg_spi_transfer(dev,false,2,tx_buff,NULL);
+}

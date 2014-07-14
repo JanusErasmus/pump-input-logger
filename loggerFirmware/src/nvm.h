@@ -3,113 +3,123 @@
 #include <cyg/kernel/kapi.h>
 
 #include "debug.h"
+#include "term.h"
 
+#define NVM_SECTOR 0x00
+#define NVM_MON_CNT 10
 #define NVM_STR_LEN 24
 #define NVM_SERVER_NAME_LEN 64
 #define NVM_SIM_PIN_LEN 6
 #define NVM_SIM_PUK_LEN 10
 #define NVM_SIM_CELL_LEN 16
+#define NVM_STAT_SECTOR 0x10000
+
 
 class cNVM : public cDebug
 {
 private:
 
-   static cNVM * __instance;
-   cNVM(cyg_uint32 dataAddress, cyg_uint32 statusAddress);
-   virtual ~cNVM();
+	static cNVM * __instance;
+	cNVM();
+	virtual ~cNVM();
 
-   cyg_uint32 mNVMDataAddress;
-   cyg_uint32 mNVMStatusAddress;
+	bool mReadyFlag;
 
-   struct sNvmData
-   {
-      cyg_uint32 rmm_ser_num;
-      cyg_uint64 box_ser_num;
-      cyg_uint8 hw_revision[NVM_STR_LEN];
+	struct sNvmData
+	{
+		cyg_uint32 rmm_ser_num;
+		cyg_uint64 box_ser_num;
+		cyg_uint8 hw_revision[NVM_STR_LEN];
 
-      cyg_uint32 updatePeriod;
-      cyg_uint8 apn[NVM_STR_LEN];		///APN name for GPRS access
-      cyg_uint8 apn_user[NVM_STR_LEN];	///The APN user name. Mostly this is an empty string
-      cyg_uint8 apn_pass[NVM_STR_LEN];	///APN password. Mostly empty
-      cyg_uint8 server_name[NVM_SERVER_NAME_LEN];///The address of the RMM server we connect to.
-      cyg_uint16 server_port;			//The UDP port we use to connect to the GLAM server
+		cyg_uint32 updatePeriod;
+		cyg_uint8 apn[NVM_STR_LEN];		///APN name for GPRS access
+		cyg_uint8 apn_user[NVM_STR_LEN];	///The APN user name. Mostly this is an empty string
+		cyg_uint8 apn_pass[NVM_STR_LEN];	///APN password. Mostly empty
+		cyg_uint8 server_name[NVM_SERVER_NAME_LEN];///The address of the RMM server we connect to.
+		cyg_uint16 server_port;			//The UDP port we use to connect to the GLAM server
 
-      cyg_uint8 sim_cell[NVM_SIM_CELL_LEN];
-      cyg_uint16 sim_pin[NVM_SIM_PIN_LEN];
-      cyg_uint8 sim_puk[NVM_SIM_PUK_LEN];
-      cyg_bool sim_puk_flag;
+		cyg_uint8 sim_cell[NVM_SIM_CELL_LEN];
+		cyg_uint16 sim_pin[NVM_SIM_PIN_LEN];
+		cyg_uint8 sim_puk[NVM_SIM_PUK_LEN];
+		cyg_bool sim_puk_flag;
 
-      cyg_uint16 crc;
+		cyg_uint8 call_index;
 
-      sNvmData();
-
-   } __attribute__((__packed__)) mNvmData;
-
-   struct sDeviceStat
-   {
-	   float analogSampleRange[4];
-	   float analogUpperLimit[4];
-	   float analogLowerLimit[4];
-	   cyg_uint32 logPeriod;
-
-	   cyg_uint16 crc;
-   } __attribute__((__packed__)) mDevStat;
+		cyg_uint16 crc;
 
 
-   void update();
-   void updateStat();
+		sNvmData();
 
-   cyg_bool check_crc(sNvmData * d);
-   cyg_bool check_crc(sDeviceStat * d);
+	} __attribute__((__packed__)) mNvmData;
 
-   void set_defaults();
-   void set_connection_defaults();
+	struct sDeviceStat
+	{
+		cyg_uint8 outputDefaultStatus[NVM_MON_CNT];
+		cyg_uint8 inputDefaultStatus[NVM_MON_CNT];
+		cyg_uint8 analogDefaultSamplerate[NVM_MON_CNT];
+
+		cyg_uint16 crc;
+	} __attribute__((__packed__)) mDevStat;
+
+
+	void update();
+	void updateStat();
+
+	cyg_bool check_crc(sNvmData * d);
+	cyg_bool check_crc(sDeviceStat * d);
+
+	void set_defaults();
+	void setDefault(void);
+	void set_connection_defaults();
+
+	cyg_bool readNVM(sNvmData* temp_data);
 
 public:
 
-   static void init(cyg_uint32 dataAddress, cyg_uint32 statusAddress);
-   static cNVM *get();
+	static cNVM * get();
+	bool isReady();
 
-   cyg_uint32 getVersion();
-   char* getBuildDate();
+	cyg_uint32 getSerial();
+	void setSerial(cyg_uint32);
+	cyg_uint64 getBoxSerial();
+	void setBoxSerial(cyg_uint64);
+	void setHWRev(char*);
+	char * getHWRev();
+	cyg_uint32 getUpdatePeriod();
+	void setUpdatePeriod(cyg_uint32);
+	char* getAPN();
+	void setAPN(char* apn);
+	char* getUser();
+	void setUser(char* user);
+	char* getPasswd();
+	void setPasswd(char* pwd);
+	char* getServer();
+	void setServer(char* server);
+	cyg_uint16 getPort();
+	void setPort(cyg_uint16 port);
+	void setSimCell(char* cell);
+	char* getSimCell();
+	void setSimPin(char* pin);
+	char* getSimPin();
+	void setSimPuk(char* puk);
+	char* getSimPuk();
+	void setSimPukFlag(bool stat);
+	bool getSimPukFlag();
+	void setCallIndex(cyg_uint8 stat);
+	cyg_uint8 getCallIndex();
 
-   void setSampleRange(cyg_uint8,float);
-   float getSampleRange(cyg_uint8);
-   void setUpperLimit(cyg_uint8,float);
-   float getUpperLimit(cyg_uint8);
-   void setLowerLimit(cyg_uint8,float);
-   float getLowerLimit(cyg_uint8);
-   void setLogPeriod(cyg_uint32);
-   cyg_uint32 getLogPeriod();
+	void setOutputStat(cyg_uint8,cyg_uint8);
+	cyg_uint8 getOutputStat(cyg_uint8);
 
-   cyg_uint32 getSerial();
-   void setSerial(cyg_uint32);
-   cyg_uint64 getBoxSerial();
-   void setBoxSerial(cyg_uint64);
-   void setHWRev(char*);
-   char * getHWRev();
-   cyg_uint32 getUpdatePeriod();
-   void setUpdatePeriod(cyg_uint32);
-   char* getAPN();
-   void setAPN(char* apn);
-   char* getUser();
-   void setUser(char* user);
-   char* getPasswd();
-   void setPasswd(char* pwd);
-   char* getServer();
-   void setServer(char* server);
-   cyg_uint16 getPort();
-   void setPort(cyg_uint16 port);
-   void setSimCell(char* cell);
-   char* getSimCell();
-   void setSimPin(char* pin);
-   char* getSimPin();
-   void setSimPuk(char* puk);
-   char* getSimPuk();
-   void setSimPukFlag(bool stat);
-   bool getSimPukFlag();
+	void setInputStat(cyg_uint8,cyg_uint8);
+	bool getInputStat(cyg_uint8);
 
-   void setDefault(void);
+	void setAnalogStat(cyg_uint8,cyg_uint8);
+	cyg_uint8 getAnalogStat(cyg_uint8);
+
+	static void config(cTerm & t,int mArgc,char *mArgv[]);
+
+
 };
 
 #endif //Include Guard

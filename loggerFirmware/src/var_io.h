@@ -42,6 +42,8 @@
 #define CYGHWR_HAL_STM32_RCC_CFGR2_PLL2MUL_20   VALUE_(8,15)
 #define CYGHWR_HAL_STM32_RCC_CFGR2_PREDIV2(__x) VALUE_(4,(__x))
 
+#define CYGHWR_HAL_STM32_AFIO_MAPR_SPI3_RMP     BIT_(28)
+
 #define CYGHWR_HAL_STM32_ADC_SR                 0x00
 #define CYGHWR_HAL_STM32_ADC_CR1                0x04
 #define CYGHWR_HAL_STM32_ADC_CR2                0x08
@@ -178,6 +180,54 @@
 #define CYGHWR_HAL_STM32_WWDG_CFR			0x04		//Window Watchdog Configuration Register
 #define CYGHWR_HAL_STM32_WWDG_SR			0x08		//Window Watchdog Status Register
 
+//-----------------------------------------------------------------------------
+// Useful GPIO macros for 'dynamic' pin setup.
+
+static const cyg_uint32 stm32_gpio_port_offsets[] = {
+  CYGHWR_HAL_STM32_GPIOA - CYGHWR_HAL_STM32_GPIOA,
+  CYGHWR_HAL_STM32_GPIOB - CYGHWR_HAL_STM32_GPIOA,
+  CYGHWR_HAL_STM32_GPIOC - CYGHWR_HAL_STM32_GPIOA,
+  CYGHWR_HAL_STM32_GPIOD - CYGHWR_HAL_STM32_GPIOA,
+  CYGHWR_HAL_STM32_GPIOE - CYGHWR_HAL_STM32_GPIOA,
+  CYGHWR_HAL_STM32_GPIOF - CYGHWR_HAL_STM32_GPIOA,
+  CYGHWR_HAL_STM32_GPIOG - CYGHWR_HAL_STM32_GPIOA
+};
+
+static const cyg_uint32 stm32_gpio_port_registers[] = {
+  CYGHWR_HAL_STM32_GPIOA,
+  CYGHWR_HAL_STM32_GPIOB,
+  CYGHWR_HAL_STM32_GPIOC,
+  CYGHWR_HAL_STM32_GPIOD,
+  CYGHWR_HAL_STM32_GPIOE,
+  CYGHWR_HAL_STM32_GPIOF,
+  CYGHWR_HAL_STM32_GPIOG,
+};
+
+/**
+ * @param __port Specify port number, usually the upper potrion of the port number (number >> 4)
+ * @param __bit Specify the bit, usually the lower portion of the port number (number & 0x0F)
+ * @param __mode Specify the pin mode:
+ *    IN			// Input mode
+ *    OUT_10MHZ		// Output mode, max 10MHz
+ *    OUT_2MHZ		// Output mode, max 2MHz
+ *    OUT_50MHZ		// Output mode, max 50MHz
+ * @param __cnf Specify the pin mode:
+ *    INPUT:
+ *    	ANALOG		// Analog input
+ *    	FLOATING	// Floating input
+ *    	PULLDOWN	// Input with pull down
+ *    	PULLUP		// Input with pull up
+ *    OUTPUT:
+ *    	GPOPP		// GP output push/pull
+ *    	GPOOD		// GP output open drain
+ *    	AOPP		// Alt output push/pull
+ *    	AOOD		// Alt output open drain *
+ */
+
+#define STM32_GPIO_PINSPEC(__port, __bit, __mode, __cnf )          \
+  (stm32_gpio_port_offsets[__port] | (__bit<<16) |                 \
+  (CYGHWR_HAL_STM32_GPIO_MODE_##__mode) |                          \
+  (CYGHWR_HAL_STM32_GPIO_CNF_##__cnf))
 
 //http://www.ecoscentric.com/ecospro/doc.cgi/html/ecospro-ref/cortexm-stm32-gpio.html
 //Short desciption of macros
@@ -188,10 +238,10 @@
 #define read_pin(pin, pointerval)    CYGHWR_HAL_STM32_GPIO_IN(pin,  pointerval )
 
 //These macros should not be used, pins should be defined below and above macros should be used.
-#define setup_pin_in(port, bit)      CYGHWR_HAL_STM32_GPIO_SET(CYGHWR_HAL_STM32_GPIO(port, bit, IN, PULL ))
-#define setup_pin_out(port, bit)     CYGHWR_HAL_STM32_GPIO_SET(CYGHWR_HAL_STM32_GPIO(port, bit, OUT_50MHZ, GPOPP ))
-#define set_pinHi(port, bit)          CYGHWR_HAL_STM32_GPIO_OUT(CYGHWR_HAL_STM32_GPIO(port, bit, OUT_50MHZ, GPOPP), 1 )
-#define set_pinLo(port, bit)          CYGHWR_HAL_STM32_GPIO_OUT(CYGHWR_HAL_STM32_GPIO(port, bit, OUT_50MHZ, GPOPP), 0 )
-#define read_pinb(port, bit, pointerval) CYGHWR_HAL_STM32_GPIO_IN(pin,  pointerval ) //Not tested yet, pointers
+#define setup_pin_in(port, bit)				CYGHWR_HAL_STM32_GPIO_SET(CYGHWR_HAL_STM32_GPIO(port, bit, IN, PULL ))
+#define setup_pin_out(port, bit)			CYGHWR_HAL_STM32_GPIO_SET(CYGHWR_HAL_STM32_GPIO(port, bit, OUT_50MHZ, GPOPP ))
+#define set_pinHi(port, bit)				CYGHWR_HAL_STM32_GPIO_OUT(CYGHWR_HAL_STM32_GPIO(port, bit, OUT_50MHZ, GPOPP), 1 )
+#define set_pinLo(port, bit)				CYGHWR_HAL_STM32_GPIO_OUT(CYGHWR_HAL_STM32_GPIO(port, bit, OUT_50MHZ, GPOPP), 0 )
+#define read_pinb(port, bit, pointerval)	CYGHWR_HAL_STM32_GPIO_IN(pin,  pointerval ) //Not tested yet, pointers
 
 #endif /* VAR_IO_H_ */

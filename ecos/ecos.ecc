@@ -36,6 +36,8 @@ cdl_configuration eCos {
     package -hardware CYGPKG_DEVS_WALLCLOCK_STM32 v3_0 ;
     package -hardware CYGPKG_IO_SPI v3_0 ;
     package -hardware CYGPKG_DEVS_SPI_CORTEXM_STM32 v3_0 ;
+    package -hardware CYGPKG_IO_FLASH v3_0 ;
+    package -hardware CYGPKG_DEVS_FLASH_SPI_AT25DFXXX current ;
     package -hardware CYGPKG_IO_I2C v3_0 ;
     package -hardware CYGPKG_DEVS_I2C_CORTEXM_STM32 v3_0 ;
     package -template CYGPKG_HAL v3_0 ;
@@ -66,22 +68,6 @@ cdl_configuration eCos {
 # ---- contents --------------------------------------------------------
 # >
 # >
-# External NOR flash support
-# This option enables support for the external NOR flash device.
-#
-cdl_option CYGHWR_HAL_CORTEXM_STM32_FLASH {
-    # This option is not active
-    # ActiveIf constraint: CYGPKG_IO_FLASH
-    #     CYGPKG_IO_FLASH (unknown) == 0
-    #   --> 0
-
-    # Flavor: bool
-    # No user value, uncomment the following line to provide one.
-    # user_value 0
-    # value_source default
-    # Default value: 0
-};
-
 # Global build options
 # Global build options including control over
 # compiler flags, linker flags and choice of toolchain.
@@ -266,6 +252,10 @@ cdl_package CYGPKG_IO_SPI {
     # The following properties are affected by this value
     # package CYGPKG_DEVS_SPI_CORTEXM_STM32
     #     ActiveIf: CYGPKG_IO_SPI
+    # component CYGNUM_IO_FLASH_BLOCK_DEVICE_ON_AT91SPI
+    #     ActiveIf: CYGPKG_HAL_ARM_AT91 CYGPKG_IO_SPI
+    # package CYGPKG_DEVS_FLASH_SPI_AT25DFXXX
+    #     ActiveIf:  CYGPKG_IO_FLASH && CYGPKG_IO_SPI 
 };
 
 # >
@@ -578,6 +568,1101 @@ cdl_option CYGNUM_DEVS_SPI_CORTEXM_STM32_BUS3_RXINTR_PRI {
 };
 
 # <
+# <
+# <
+# FLASH device drivers
+# doc: ref/io-flash.html
+# This package provides support for the flash devices on the
+# current platform.
+#
+cdl_package CYGPKG_IO_FLASH {
+    # Packages cannot be added or removed, nor can their version be changed,
+    # simply by editing their value. Instead the appropriate configuration
+    # should be used to perform these actions.
+
+    # This value cannot be modified here.
+    # Flavor: booldata
+    # Current value: 1 v3_0
+    # Requires: CYGPKG_ISOINFRA
+    #     CYGPKG_ISOINFRA == v3_0
+    #   --> 1
+    # Requires: CYGINT_ISO_STRING_STRFUNCS
+    #     CYGINT_ISO_STRING_STRFUNCS == 1
+    #   --> 1
+
+    # The following properties are affected by this value
+    # option CYGHWR_HAL_CORTEXM_STM32_FLASH
+    #     ActiveIf: CYGPKG_IO_FLASH
+    # package CYGPKG_DEVS_FLASH_SPI_AT25DFXXX
+    #     ActiveIf:  CYGPKG_IO_FLASH && CYGPKG_IO_SPI 
+};
+
+# >
+# Hardware FLASH device drivers
+# This calculated option gives the number of flash devices
+# on the current platform. The generic flash support requires
+# at least one device.
+#
+cdl_interface CYGHWR_IO_FLASH_DEVICE {
+    # Implemented by CYGPKG_DEVS_FLASH_SPI_AT25DFXXX, active, enabled
+    # This value cannot be modified here.
+    # Flavor: data
+    # Current_value: 1
+    # Requires:  CYGHWR_IO_FLASH_DEVICE >= 1 
+    #     CYGHWR_IO_FLASH_DEVICE == 1
+    #   --> 1
+
+    # The following properties are affected by this value
+    # interface CYGHWR_IO_FLASH_DEVICE
+    #     Requires:  CYGHWR_IO_FLASH_DEVICE >= 1 
+    # option CYGSEM_IO_FLASH_VERIFY_PROGRAM
+    #     ActiveIf:  CYGHWR_IO_FLASH_INDIRECT_READS < CYGHWR_IO_FLASH_DEVICE 
+};
+
+# Hardware can support block locking
+# This option will be enabled by devices which can support
+# locking (write-protection) of individual flash blocks. If
+# none of the devices support locking then the relevant code
+# in the generic flash package can be eliminated.
+#
+cdl_interface CYGHWR_IO_FLASH_BLOCK_LOCKING {
+    # Implemented by CYGPKG_DEVS_FLASH_SPI_AT25DFXXX, active, enabled
+    # This value cannot be modified here.
+    # Flavor: booldata
+    # Current value: 1 1
+
+    # The following properties are affected by this value
+};
+
+# Hardware requires indirect reads
+# Some flash devices can be read directly like any other
+# memory. Others can only be accessed indirectly, which
+# involves extra code. If none of the flash devices on the
+# target hardware use indirect reads then the extra code
+# can be eliminated.
+#
+cdl_interface CYGHWR_IO_FLASH_INDIRECT_READS {
+    # Implemented by CYGPKG_DEVS_FLASH_SPI_AT25DFXXX, active, enabled
+    # This value cannot be modified here.
+    # Flavor: booldata
+    # Current value: 1 1
+
+    # The following properties are affected by this value
+    # option CYGSEM_IO_FLASH_VERIFY_PROGRAM
+    #     ActiveIf:  CYGHWR_IO_FLASH_INDIRECT_READS < CYGHWR_IO_FLASH_DEVICE 
+};
+
+# Device driver needs cache handled centrally
+# Managing flash often requires interacting with the cache.
+# Some device drivers do not require the generic flash code to
+# manipulate the cache, either because they do it themselves or
+# because the hardware does the right thing. Other drivers
+# require the generic code to disable/enable the cache before
+# calling into the driver.
+#
+cdl_interface CYGHWR_IO_FLASH_DEVICE_NEEDS_CACHE_HANDLED {
+    # Implemented by CYGHWR_IO_FLASH_DEVICE_LEGACY, active, disabled
+    # This value cannot be modified here.
+    # Flavor: booldata
+    # Current value: 0 0
+
+    # The following properties are affected by this value
+};
+
+# Hardware driver uses the legacy interface
+# The generic flash code can work with either a legacy device
+# driver or with V2 drivers. If a legacy driver is used on the
+# current platform then this option will be implemented.
+#
+cdl_interface CYGHWR_IO_FLASH_DEVICE_LEGACY {
+    # No options implement this inferface
+    # This value cannot be modified here.
+    # Flavor: booldata
+    # Current value: 0 0
+    # Requires:  CYGHWR_IO_FLASH_DEVICE_LEGACY <= 1 
+    #     CYGHWR_IO_FLASH_DEVICE_LEGACY == 0
+    #   --> 1
+
+    # The following properties are affected by this value
+    # interface CYGHWR_IO_FLASH_DEVICE_LEGACY
+    #     Requires:  CYGHWR_IO_FLASH_DEVICE_LEGACY <= 1 
+    # option CYGSEM_IO_FLASH_READ_INDIRECT
+    #     ActiveIf: CYGHWR_IO_FLASH_DEVICE_LEGACY
+};
+
+# Legacy device driver uses indirect reads.
+# This option will be asserted by devices which cannot support
+# direct access to the FLASH memory contents (e.g. EEPROM or NAND
+# devices).  In these cases, the driver must provide an appropriate
+# hardware access function.
+#
+cdl_option CYGSEM_IO_FLASH_READ_INDIRECT {
+    # This option is not active
+    # ActiveIf constraint: CYGHWR_IO_FLASH_DEVICE_LEGACY
+    #     CYGHWR_IO_FLASH_DEVICE_LEGACY == 0
+    #   --> 0
+
+    # Flavor: bool
+    # No user value, uncomment the following line to provide one.
+    # user_value 0
+    # value_source default
+    # Default value: 0
+    # Requires:  !CYGSEM_IO_FLASH_VERIFY_PROGRAM 
+    #     CYGSEM_IO_FLASH_VERIFY_PROGRAM == 0
+    #   --> 1
+};
+
+# Display status messages during flash operations
+# Selecting this option will cause the flash code to print status
+# messages as various flash operations are undertaken.
+#
+cdl_option CYGSEM_IO_FLASH_CHATTER {
+    # Flavor: bool
+    # No user value, uncomment the following line to provide one.
+    # user_value 1
+    # value_source default
+    # Default value: 1
+};
+
+# Verify data programmed to flash
+# Selecting this option will cause verification of data
+# programmed to flash.
+#
+cdl_option CYGSEM_IO_FLASH_VERIFY_PROGRAM {
+    # This option is not active
+    # ActiveIf constraint:  CYGHWR_IO_FLASH_INDIRECT_READS < CYGHWR_IO_FLASH_DEVICE 
+    #     CYGHWR_IO_FLASH_INDIRECT_READS == 1
+    #     CYGHWR_IO_FLASH_DEVICE == 1
+    #   --> 0
+
+    # Flavor: bool
+    # No user value, uncomment the following line to provide one.
+    # user_value 1
+    # value_source default
+    # Default value: 1
+
+    # The following properties are affected by this value
+    # option CYGSEM_IO_FLASH_READ_INDIRECT
+    #     Requires:  !CYGSEM_IO_FLASH_VERIFY_PROGRAM 
+};
+
+# Platform has flash soft DIP switch write-protect
+# Selecting this option will cause the state of a hardware jumper or
+# dipswitch to be read by software to determine whether the flash is
+# write-protected or not.
+#
+cdl_option CYGSEM_IO_FLASH_SOFT_WRITE_PROTECT {
+    # Flavor: bool
+    # No user value, uncomment the following line to provide one.
+    # user_value 0
+    # value_source default
+    # Default value: 0
+};
+
+# Provide /dev block devices
+# Provide one or more block devices below /dev which can be
+# accessed using standard I/O functions such as eCos cyg_io_read()
+# and POSIX open().
+#
+cdl_component CYGPKG_IO_FLASH_BLOCK_DEVICE {
+    # ActiveIf constraint: CYGPKG_IO
+    #     CYGPKG_IO == v3_0
+    #   --> 1
+
+    # Flavor: bool
+    # No user value, uncomment the following line to provide one.
+    # user_value 0
+    # value_source default
+    # Default value: 0
+    # Requires:  CYGINT_IO_FLASH_BLOCK_DEVICE_METHODS > 0
+    #     CYGINT_IO_FLASH_BLOCK_DEVICE_METHODS == 0
+    #   --> 0
+
+    # The following properties are affected by this value
+    # component CYGPKG_IO_FLASH_TESTS
+    #     Calculated:  (CYGSEM_IO_FLASH_LEGACY_API ? "tests/flash1" : "") .
+    #                              (CYGPKG_IO_FLASH_BLOCK_DEVICE ? " tests/flashdev" : "") 
+};
+
+# >
+# Number of methods to reference Flash
+# This interface counts the number of ways Flash can
+# be referenced in order to be opened. This is so that
+# the configuration can ensure that at least one method
+# is available.
+#
+cdl_interface CYGINT_IO_FLASH_BLOCK_DEVICE_METHODS {
+    # Implemented by CYGFUN_IO_FLASH_BLOCK_FROM_FIS, inactive, enabled
+    # Implemented by CYGFUN_IO_FLASH_BLOCK_FROM_DEVOFFSET, inactive, enabled
+    # This option is not active
+    # The parent CYGPKG_IO_FLASH_BLOCK_DEVICE is disabled
+
+    # This value cannot be modified here.
+    # Flavor: bool
+    # Current value: 0
+
+    # The following properties are affected by this value
+    # component CYGPKG_IO_FLASH_BLOCK_DEVICE
+    #     Requires:  CYGINT_IO_FLASH_BLOCK_DEVICE_METHODS > 0
+};
+
+# Number of /dev/flash/ device slots
+# The number of simultaneously open flash devices
+# permitted. This is statically configured, rather than
+# dynamically allocated at run-time as it is likely the
+# number required will be small.
+#
+cdl_option CYGNUM_IO_FLASH_BLOCK_DEVICES {
+    # This option is not active
+    # The parent CYGPKG_IO_FLASH_BLOCK_DEVICE is disabled
+
+    # Flavor: data
+    # No user value, uncomment the following line to provide one.
+    # user_value 2
+    # value_source default
+    # Default value: 2
+};
+
+# Setup at91 device on SPI
+#
+cdl_component CYGNUM_IO_FLASH_BLOCK_DEVICE_ON_AT91SPI {
+    # This option is not active
+    # The parent CYGPKG_IO_FLASH_BLOCK_DEVICE is disabled
+    # ActiveIf constraint: CYGPKG_HAL_ARM_AT91 CYGPKG_IO_SPI
+    #     CYGPKG_HAL_ARM_AT91 (unknown) == 0
+    #     CYGPKG_IO_SPI == v3_0
+    #   --> 0
+
+    # Flavor: bool
+    # No user value, uncomment the following line to provide one.
+    # user_value 0
+    # value_source default
+    # Default value: 0
+
+    # The following properties are affected by this value
+    # component CYGNUM_IO_FLASH_KSES_LDO_ENABLE
+    #     ActiveIf: CYGNUM_IO_FLASH_BLOCK_DEVICE_ON_AT91SPI
+};
+
+# >
+# SPI bus number
+# Set the SPI bus number.
+#
+cdl_option CYGNUM_IO_FLASH_BLOCK_DEVICE_AT91SPI_BUS {
+    # This option is not active
+    # The parent CYGNUM_IO_FLASH_BLOCK_DEVICE_ON_AT91SPI is not active
+    # The parent CYGNUM_IO_FLASH_BLOCK_DEVICE_ON_AT91SPI is disabled
+
+    # Flavor: data
+    # No user value, uncomment the following line to provide one.
+    # user_value 0
+    # value_source default
+    # Default value: 0
+};
+
+# SPI device number
+# Set the SPI device number.
+#
+cdl_option CYGNUM_IO_FLASH_BLOCK_DEVICE_AT91SPI_DEV {
+    # This option is not active
+    # The parent CYGNUM_IO_FLASH_BLOCK_DEVICE_ON_AT91SPI is not active
+    # The parent CYGNUM_IO_FLASH_BLOCK_DEVICE_ON_AT91SPI is disabled
+
+    # Flavor: data
+    # No user value, uncomment the following line to provide one.
+    # user_value 1
+    # value_source default
+    # Default value: 1
+};
+
+# SPI clock polarity
+# Set the SPI clock polarity.
+#
+cdl_option CYGNUM_IO_FLASH_BLOCK_DEVICE_AT91SPI_CLKPOL {
+    # This option is not active
+    # The parent CYGNUM_IO_FLASH_BLOCK_DEVICE_ON_AT91SPI is not active
+    # The parent CYGNUM_IO_FLASH_BLOCK_DEVICE_ON_AT91SPI is disabled
+
+    # Flavor: data
+    # No user value, uncomment the following line to provide one.
+    # user_value 1
+    # value_source default
+    # Default value: 1
+};
+
+# SPI clock phase
+# Set the SPI clock phase.
+#
+cdl_option CYGNUM_IO_FLASH_BLOCK_DEVICE_AT91SPI_CLKPH {
+    # This option is not active
+    # The parent CYGNUM_IO_FLASH_BLOCK_DEVICE_ON_AT91SPI is not active
+    # The parent CYGNUM_IO_FLASH_BLOCK_DEVICE_ON_AT91SPI is disabled
+
+    # Flavor: data
+    # No user value, uncomment the following line to provide one.
+    # user_value 0
+    # value_source default
+    # Default value: 0
+};
+
+# SPI baud rate
+# Set the SPI baud rate.
+#
+cdl_option CYGNUM_IO_FLASH_BLOCK_DEVICE_AT91SPI_BAUD {
+    # This option is not active
+    # The parent CYGNUM_IO_FLASH_BLOCK_DEVICE_ON_AT91SPI is not active
+    # The parent CYGNUM_IO_FLASH_BLOCK_DEVICE_ON_AT91SPI is disabled
+
+    # Flavor: data
+    # No user value, uncomment the following line to provide one.
+    # user_value 24000000
+    # value_source default
+    # Default value: 24000000
+};
+
+# SPI CS up delay
+# Set the Chip Select UP delay before transfer starts.
+#
+cdl_option CYGNUM_IO_FLASH_BLOCK_DEVICE_AT91SPI_CSUP {
+    # This option is not active
+    # The parent CYGNUM_IO_FLASH_BLOCK_DEVICE_ON_AT91SPI is not active
+    # The parent CYGNUM_IO_FLASH_BLOCK_DEVICE_ON_AT91SPI is disabled
+
+    # Flavor: data
+    # No user value, uncomment the following line to provide one.
+    # user_value 1
+    # value_source default
+    # Default value: 1
+};
+
+# SPI CS down delay
+# Set the Chip Select Down delay after transfer completes.
+#
+cdl_option CYGNUM_IO_FLASH_BLOCK_DEVICE_AT91SPI_CSDWN {
+    # This option is not active
+    # The parent CYGNUM_IO_FLASH_BLOCK_DEVICE_ON_AT91SPI is not active
+    # The parent CYGNUM_IO_FLASH_BLOCK_DEVICE_ON_AT91SPI is disabled
+
+    # Flavor: data
+    # No user value, uncomment the following line to provide one.
+    # user_value 1
+    # value_source default
+    # Default value: 1
+};
+
+# SPI trasnsfer delay
+# Set the SPI delay between transfers.
+#
+cdl_option CYGNUM_IO_FLASH_BLOCK_DEVICE_AT91SPI_TRBT {
+    # This option is not active
+    # The parent CYGNUM_IO_FLASH_BLOCK_DEVICE_ON_AT91SPI is not active
+    # The parent CYGNUM_IO_FLASH_BLOCK_DEVICE_ON_AT91SPI is disabled
+
+    # Flavor: data
+    # No user value, uncomment the following line to provide one.
+    # user_value 1
+    # value_source default
+    # Default value: 1
+};
+
+# <
+# Enable power to FLASH on key2010
+#
+cdl_component CYGNUM_IO_FLASH_KSES_LDO_ENABLE {
+    # This option is not active
+    # The parent CYGPKG_IO_FLASH_BLOCK_DEVICE is disabled
+    # ActiveIf constraint: CYGNUM_IO_FLASH_BLOCK_DEVICE_ON_AT91SPI
+    #     CYGNUM_IO_FLASH_BLOCK_DEVICE_ON_AT91SPI == 0
+    #   --> 0
+
+    # Flavor: bool
+    # No user value, uncomment the following line to provide one.
+    # user_value 0
+    # value_source default
+    # Default value: 0
+};
+
+# Access using named FIS areas
+# This method of access to Flash regions uses the names
+# of FIS regions to identify the Flash device, or portion
+# of the device. For example /dev/flash/fis/jffs2.
+#
+cdl_option CYGFUN_IO_FLASH_BLOCK_FROM_FIS {
+    # This option is not active
+    # The parent CYGPKG_IO_FLASH_BLOCK_DEVICE is disabled
+
+    # Flavor: bool
+    # No user value, uncomment the following line to provide one.
+    # user_value 1
+    # value_source default
+    # Default value: CYGSEM_HAL_VIRTUAL_VECTOR_SUPPORT
+    #     CYGSEM_HAL_VIRTUAL_VECTOR_SUPPORT == 1
+    #   --> 1
+    # Requires: CYGSEM_HAL_VIRTUAL_VECTOR_SUPPORT
+    #     CYGSEM_HAL_VIRTUAL_VECTOR_SUPPORT == 1
+    #   --> 1
+};
+
+# Access using device numbers,offsets
+# This method of access to Flash regions uses the Flash
+# device number, along with an offset (which may be
+# 0 to indicate the start of the device) and an optional length
+# which will otherwise be assumed to be the whole device.
+# For example /dev/flash/0/0x1000 or
+# /dev/flash/1/0,65536.
+#
+cdl_option CYGFUN_IO_FLASH_BLOCK_FROM_DEVOFFSET {
+    # This option is not active
+    # The parent CYGPKG_IO_FLASH_BLOCK_DEVICE is disabled
+
+    # Flavor: bool
+    # No user value, uncomment the following line to provide one.
+    # user_value 1
+    # value_source default
+    # Default value: 1
+};
+
+# <
+# Provide the legacy user API
+# Provide an implementation of the lagacy user API. This is mapped 
+# onto the new API via a small layer of code
+#
+cdl_option CYGSEM_IO_FLASH_LEGACY_API {
+    # Flavor: bool
+    # No user value, uncomment the following line to provide one.
+    # user_value 1
+    # value_source default
+    # Default value: 1
+
+    # The following properties are affected by this value
+    # component CYGPKG_IO_FLASH_TESTS
+    #     Calculated:  (CYGSEM_IO_FLASH_LEGACY_API ? "tests/flash1" : "") .
+    #                              (CYGPKG_IO_FLASH_BLOCK_DEVICE ? " tests/flashdev" : "") 
+};
+
+# Provide /dev block devices (legacy format)
+# Provide one or more block devices below /dev which can be
+# accessed using standard I/O functions such as eCos cyg_io_read()
+# and POSIX open(). This format of configuration is deprecated,
+# but is included for compatibility with older configurations.
+#
+cdl_component CYGPKG_IO_FLASH_BLOCK_DEVICE_LEGACY {
+    # ActiveIf constraint: CYGPKG_IO
+    #     CYGPKG_IO == v3_0
+    #   --> 1
+
+    # Flavor: bool
+    # No user value, uncomment the following line to provide one.
+    # user_value 0
+    # value_source default
+    # Default value: 0
+};
+
+# >
+# Provide block device 1
+# Provide block device 1 for use with standard I/O
+#
+cdl_component CYGPKG_IO_FLASH_BLOCK_DEVICE_1 {
+    # This option is not active
+    # The parent CYGPKG_IO_FLASH_BLOCK_DEVICE_LEGACY is disabled
+
+    # Flavor: bool
+    # No user value, uncomment the following line to provide one.
+    # user_value 1
+    # value_source default
+    # Default value: 1
+};
+
+# >
+# Name of flash block device 1
+# This option determines the name by which the block
+# device can be accessed.
+#
+cdl_option CYGDAT_IO_FLASH_BLOCK_DEVICE_NAME_1 {
+    # This option is not active
+    # The parent CYGPKG_IO_FLASH_BLOCK_DEVICE_1 is not active
+
+    # Flavor: data
+    # No user value, uncomment the following line to provide one.
+    # user_value "\"/dev/flash1\""
+    # value_source default
+    # Default value: "\"/dev/flash1\""
+};
+
+#
+cdl_interface CYGINT_IO_FLASH_BLOCK_CFG_1 {
+    # Implemented by CYGNUM_IO_FLASH_BLOCK_CFG_STATIC_1, inactive, enabled
+    # Implemented by CYGNUM_IO_FLASH_BLOCK_CFG_STATIC_ABSOLUTE_1, inactive, disabled
+    # Implemented by CYGNUM_IO_FLASH_BLOCK_CFG_FIS_1, inactive, disabled
+    # This option is not active
+    # The parent CYGPKG_IO_FLASH_BLOCK_DEVICE_1 is not active
+
+    # This value cannot be modified here.
+    # Flavor: data
+    # Current_value: 0
+    # Requires: 1 == CYGINT_IO_FLASH_BLOCK_CFG_1
+    #     CYGINT_IO_FLASH_BLOCK_CFG_1 == 0
+    #   --> 0
+
+    # The following properties are affected by this value
+    # interface CYGINT_IO_FLASH_BLOCK_CFG_1
+    #     Requires: 1 == CYGINT_IO_FLASH_BLOCK_CFG_1
+};
+
+# Static configuration via offset
+# This configures the flash block device 1
+# with static offset from the base of the first
+# flash device and length
+#
+cdl_component CYGNUM_IO_FLASH_BLOCK_CFG_STATIC_1 {
+    # This option is not active
+    # The parent CYGPKG_IO_FLASH_BLOCK_DEVICE_1 is not active
+
+    # Flavor: bool
+    # No user value, uncomment the following line to provide one.
+    # user_value 1
+    # value_source default
+    # Default value: 1
+};
+
+# >
+# Start offset from flash base
+# This gives the offset from the base of flash 
+# of the first flash device which this block device 
+# corresponds to.
+#
+cdl_option CYGNUM_IO_FLASH_BLOCK_OFFSET_1 {
+    # This option is not active
+    # The parent CYGNUM_IO_FLASH_BLOCK_CFG_STATIC_1 is not active
+
+    # Flavor: data
+    # No user value, uncomment the following line to provide one.
+    # user_value 0xFFFFFFFF
+    # value_source default
+    # Default value: 0xFFFFFFFF
+    # Requires: 0xFFFFFFFF != CYGNUM_IO_FLASH_BLOCK_OFFSET_1
+    #     CYGNUM_IO_FLASH_BLOCK_OFFSET_1 == 0
+    #   --> 1
+
+    # The following properties are affected by this value
+    # option CYGNUM_IO_FLASH_BLOCK_OFFSET_1
+    #     Requires: 0xFFFFFFFF != CYGNUM_IO_FLASH_BLOCK_OFFSET_1
+    # option CYGNUM_IO_FLASH_BLOCK_LENGTH_1
+    #     Requires: 0 != CYGNUM_IO_FLASH_BLOCK_OFFSET_1
+};
+
+# Length
+# This gives the length of the region of flash given over
+# to this block device.
+#
+cdl_option CYGNUM_IO_FLASH_BLOCK_LENGTH_1 {
+    # This option is not active
+    # The parent CYGNUM_IO_FLASH_BLOCK_CFG_STATIC_1 is not active
+
+    # Flavor: data
+    # No user value, uncomment the following line to provide one.
+    # user_value 0
+    # value_source default
+    # Default value: 0
+    # Requires: 0 != CYGNUM_IO_FLASH_BLOCK_OFFSET_1
+    #     CYGNUM_IO_FLASH_BLOCK_OFFSET_1 == 0
+    #   --> 0
+};
+
+# <
+# Static configuration via absolute address
+# This configures the flash block device 1
+# with absolute base address and a length
+#
+cdl_component CYGNUM_IO_FLASH_BLOCK_CFG_STATIC_ABSOLUTE_1 {
+    # This option is not active
+    # The parent CYGPKG_IO_FLASH_BLOCK_DEVICE_1 is not active
+
+    # Flavor: bool
+    # No user value, uncomment the following line to provide one.
+    # user_value 0
+    # value_source default
+    # Default value: 0
+};
+
+# >
+# Start offset from flash base
+# This gives the absolute address in flash which this
+# block device corresponds to.
+#
+cdl_option CYGNUM_IO_FLASH_BLOCK_ABSOLUTE_START_1 {
+    # This option is not active
+    # The parent CYGNUM_IO_FLASH_BLOCK_CFG_STATIC_ABSOLUTE_1 is not active
+    # The parent CYGNUM_IO_FLASH_BLOCK_CFG_STATIC_ABSOLUTE_1 is disabled
+
+    # Flavor: data
+    # No user value, uncomment the following line to provide one.
+    # user_value 0xFFFFFFFF
+    # value_source default
+    # Default value: 0xFFFFFFFF
+    # Requires: 0xFFFFFFFF != CYGNUM_IO_FLASH_BLOCK_ABSOLUTE_START_1
+    #     CYGNUM_IO_FLASH_BLOCK_ABSOLUTE_START_1 == 0
+    #   --> 1
+
+    # The following properties are affected by this value
+    # option CYGNUM_IO_FLASH_BLOCK_ABSOLUTE_START_1
+    #     Requires: 0xFFFFFFFF != CYGNUM_IO_FLASH_BLOCK_ABSOLUTE_START_1
+};
+
+# Length
+# This gives the length of the region of flash given over
+# to this block device.
+#
+cdl_option CYGNUM_IO_FLASH_BLOCK_ABSOLUTE_LENGTH_1 {
+    # This option is not active
+    # The parent CYGNUM_IO_FLASH_BLOCK_CFG_STATIC_ABSOLUTE_1 is not active
+    # The parent CYGNUM_IO_FLASH_BLOCK_CFG_STATIC_ABSOLUTE_1 is disabled
+
+    # Flavor: data
+    # No user value, uncomment the following line to provide one.
+    # user_value 0
+    # value_source default
+    # Default value: 0
+    # Requires: 0 != CYGNUM_IO_FLASH_BLOCK_ABSOLUTE_LENGTH_1
+    #     CYGNUM_IO_FLASH_BLOCK_ABSOLUTE_LENGTH_1 == 0
+    #   --> 0
+
+    # The following properties are affected by this value
+    # option CYGNUM_IO_FLASH_BLOCK_ABSOLUTE_LENGTH_1
+    #     Requires: 0 != CYGNUM_IO_FLASH_BLOCK_ABSOLUTE_LENGTH_1
+};
+
+# <
+# Configuration from FIS
+# This configures the flash block device 1
+# from Redboot FIS
+#
+cdl_component CYGNUM_IO_FLASH_BLOCK_CFG_FIS_1 {
+    # This option is not active
+    # The parent CYGPKG_IO_FLASH_BLOCK_DEVICE_1 is not active
+
+    # Flavor: bool
+    # No user value, uncomment the following line to provide one.
+    # user_value 0
+    # value_source default
+    # Default value: 0
+};
+
+# >
+# Name of FIS entry
+#
+cdl_component CYGDAT_IO_FLASH_BLOCK_FIS_NAME_1 {
+    # This option is not active
+    # The parent CYGNUM_IO_FLASH_BLOCK_CFG_FIS_1 is not active
+    # The parent CYGNUM_IO_FLASH_BLOCK_CFG_FIS_1 is disabled
+
+    # Flavor: data
+    # No user value, uncomment the following line to provide one.
+    # user_value "\"jffs2\""
+    # value_source default
+    # Default value: "\"jffs2\""
+    # Requires: "" != CYGDAT_IO_FLASH_BLOCK_FIS_NAME_1
+    #     CYGDAT_IO_FLASH_BLOCK_FIS_NAME_1 == 0
+    #   --> 0
+
+    # The following properties are affected by this value
+    # component CYGDAT_IO_FLASH_BLOCK_FIS_NAME_1
+    #     Requires: "" != CYGDAT_IO_FLASH_BLOCK_FIS_NAME_1
+};
+
+# <
+# <
+# Provide block device 2
+# Provide block device 2 for use with standard I/O
+#
+cdl_component CYGPKG_IO_FLASH_BLOCK_DEVICE_2 {
+    # This option is not active
+    # The parent CYGPKG_IO_FLASH_BLOCK_DEVICE_LEGACY is disabled
+
+    # Flavor: bool
+    # No user value, uncomment the following line to provide one.
+    # user_value 0
+    # value_source default
+    # Default value: 0
+};
+
+# >
+# Name of flash block device 2
+# This option determines the name by which the block
+# device can be accessed.
+#
+cdl_option CYGDAT_IO_FLASH_BLOCK_DEVICE_NAME_2 {
+    # This option is not active
+    # The parent CYGPKG_IO_FLASH_BLOCK_DEVICE_2 is not active
+    # The parent CYGPKG_IO_FLASH_BLOCK_DEVICE_2 is disabled
+
+    # Flavor: data
+    # No user value, uncomment the following line to provide one.
+    # user_value "\"/dev/flash2\""
+    # value_source default
+    # Default value: "\"/dev/flash2\""
+};
+
+#
+cdl_interface CYGINT_IO_FLASH_BLOCK_CFG_2 {
+    # Implemented by CYGNUM_IO_FLASH_BLOCK_CFG_STATIC_2, inactive, enabled
+    # Implemented by CYGNUM_IO_FLASH_BLOCK_CFG_STATIC_ABSOLUTE_2, inactive, disabled
+    # Implemented by CYGNUM_IO_FLASH_BLOCK_CFG_FIS_2, inactive, disabled
+    # This option is not active
+    # The parent CYGPKG_IO_FLASH_BLOCK_DEVICE_2 is not active
+    # The parent CYGPKG_IO_FLASH_BLOCK_DEVICE_2 is disabled
+
+    # This value cannot be modified here.
+    # Flavor: data
+    # Current_value: 0
+    # Requires: 1 == CYGINT_IO_FLASH_BLOCK_CFG_2
+    #     CYGINT_IO_FLASH_BLOCK_CFG_2 == 0
+    #   --> 0
+
+    # The following properties are affected by this value
+    # interface CYGINT_IO_FLASH_BLOCK_CFG_2
+    #     Requires: 1 == CYGINT_IO_FLASH_BLOCK_CFG_2
+};
+
+# Static configuration via offset
+# This configures the flash block device 2
+# with static offset from the base of the first
+# flash device and length
+#
+cdl_component CYGNUM_IO_FLASH_BLOCK_CFG_STATIC_2 {
+    # This option is not active
+    # The parent CYGPKG_IO_FLASH_BLOCK_DEVICE_2 is not active
+    # The parent CYGPKG_IO_FLASH_BLOCK_DEVICE_2 is disabled
+
+    # Flavor: bool
+    # No user value, uncomment the following line to provide one.
+    # user_value 1
+    # value_source default
+    # Default value: 1
+};
+
+# >
+# Start offset from flash base
+# This gives the offset from the base of flash 
+# of the first flash device which this block device 
+# corresponds to.
+#
+cdl_option CYGNUM_IO_FLASH_BLOCK_OFFSET_2 {
+    # This option is not active
+    # The parent CYGNUM_IO_FLASH_BLOCK_CFG_STATIC_2 is not active
+
+    # Flavor: data
+    # No user value, uncomment the following line to provide one.
+    # user_value 0xFFFFFFFF
+    # value_source default
+    # Default value: 0xFFFFFFFF
+    # Requires: 0xFFFFFFFF != CYGNUM_IO_FLASH_BLOCK_OFFSET_2
+    #     CYGNUM_IO_FLASH_BLOCK_OFFSET_2 == 0
+    #   --> 1
+
+    # The following properties are affected by this value
+    # option CYGNUM_IO_FLASH_BLOCK_OFFSET_2
+    #     Requires: 0xFFFFFFFF != CYGNUM_IO_FLASH_BLOCK_OFFSET_2
+    # option CYGNUM_IO_FLASH_BLOCK_LENGTH_2
+    #     Requires: 0 != CYGNUM_IO_FLASH_BLOCK_OFFSET_2
+};
+
+# Length
+# This gives the length of the region of flash given over
+# to this block device.
+#
+cdl_option CYGNUM_IO_FLASH_BLOCK_LENGTH_2 {
+    # This option is not active
+    # The parent CYGNUM_IO_FLASH_BLOCK_CFG_STATIC_2 is not active
+
+    # Flavor: data
+    # No user value, uncomment the following line to provide one.
+    # user_value 0
+    # value_source default
+    # Default value: 0
+    # Requires: 0 != CYGNUM_IO_FLASH_BLOCK_OFFSET_2
+    #     CYGNUM_IO_FLASH_BLOCK_OFFSET_2 == 0
+    #   --> 0
+};
+
+# <
+# Static configuration via absolute address
+# This configures the flash block device 2
+# with absolute base address and a length
+#
+cdl_component CYGNUM_IO_FLASH_BLOCK_CFG_STATIC_ABSOLUTE_2 {
+    # This option is not active
+    # The parent CYGPKG_IO_FLASH_BLOCK_DEVICE_2 is not active
+    # The parent CYGPKG_IO_FLASH_BLOCK_DEVICE_2 is disabled
+
+    # Flavor: bool
+    # No user value, uncomment the following line to provide one.
+    # user_value 0
+    # value_source default
+    # Default value: 0
+};
+
+# >
+# Start offset from flash base
+# This gives the absolute address in flash which this
+# block device corresponds to.
+#
+cdl_option CYGNUM_IO_FLASH_BLOCK_ABSOLUTE_START_2 {
+    # This option is not active
+    # The parent CYGNUM_IO_FLASH_BLOCK_CFG_STATIC_ABSOLUTE_2 is not active
+    # The parent CYGNUM_IO_FLASH_BLOCK_CFG_STATIC_ABSOLUTE_2 is disabled
+
+    # Flavor: data
+    # No user value, uncomment the following line to provide one.
+    # user_value 0xFFFFFFFF
+    # value_source default
+    # Default value: 0xFFFFFFFF
+    # Requires: 0xFFFFFFFF != CYGNUM_IO_FLASH_BLOCK_ABSOLUTE_START_2
+    #     CYGNUM_IO_FLASH_BLOCK_ABSOLUTE_START_2 == 0
+    #   --> 1
+
+    # The following properties are affected by this value
+    # option CYGNUM_IO_FLASH_BLOCK_ABSOLUTE_START_2
+    #     Requires: 0xFFFFFFFF != CYGNUM_IO_FLASH_BLOCK_ABSOLUTE_START_2
+};
+
+# Length
+# This gives the length of the region of flash given over
+# to this block device.
+#
+cdl_option CYGNUM_IO_FLASH_BLOCK_ABSOLUTE_LENGTH_2 {
+    # This option is not active
+    # The parent CYGNUM_IO_FLASH_BLOCK_CFG_STATIC_ABSOLUTE_2 is not active
+    # The parent CYGNUM_IO_FLASH_BLOCK_CFG_STATIC_ABSOLUTE_2 is disabled
+
+    # Flavor: data
+    # No user value, uncomment the following line to provide one.
+    # user_value 0
+    # value_source default
+    # Default value: 0
+    # Requires: 0 != CYGNUM_IO_FLASH_BLOCK_ABSOLUTE_LENGTH_2
+    #     CYGNUM_IO_FLASH_BLOCK_ABSOLUTE_LENGTH_2 == 0
+    #   --> 0
+
+    # The following properties are affected by this value
+    # option CYGNUM_IO_FLASH_BLOCK_ABSOLUTE_LENGTH_2
+    #     Requires: 0 != CYGNUM_IO_FLASH_BLOCK_ABSOLUTE_LENGTH_2
+};
+
+# <
+# Configuration from FIS
+# This configures the flash block device 2
+# from Redboot FIS
+#
+cdl_component CYGNUM_IO_FLASH_BLOCK_CFG_FIS_2 {
+    # This option is not active
+    # The parent CYGPKG_IO_FLASH_BLOCK_DEVICE_2 is not active
+    # The parent CYGPKG_IO_FLASH_BLOCK_DEVICE_2 is disabled
+
+    # Flavor: bool
+    # No user value, uncomment the following line to provide one.
+    # user_value 0
+    # value_source default
+    # Default value: 0
+};
+
+# >
+# Name of FIS entry
+#
+cdl_component CYGDAT_IO_FLASH_BLOCK_FIS_NAME_2 {
+    # This option is not active
+    # The parent CYGNUM_IO_FLASH_BLOCK_CFG_FIS_2 is not active
+    # The parent CYGNUM_IO_FLASH_BLOCK_CFG_FIS_2 is disabled
+
+    # Flavor: data
+    # No user value, uncomment the following line to provide one.
+    # user_value "\"jffs2-2\""
+    # value_source default
+    # Default value: "\"jffs2-2\""
+    # Requires: "" != CYGDAT_IO_FLASH_BLOCK_FIS_NAME_2
+    #     CYGDAT_IO_FLASH_BLOCK_FIS_NAME_2 == 0
+    #   --> 0
+
+    # The following properties are affected by this value
+    # component CYGDAT_IO_FLASH_BLOCK_FIS_NAME_2
+    #     Requires: "" != CYGDAT_IO_FLASH_BLOCK_FIS_NAME_2
+};
+
+# <
+# <
+# <
+# Flash device driver build options
+# Package specific build options including control over
+# compiler flags used only in building this package,
+# and details of which tests are built.
+#
+cdl_component CYGPKG_IO_FLASH_OPTIONS {
+    # There is no associated value.
+};
+
+# >
+# Additional compiler flags
+# This option modifies the set of compiler flags for
+# building the flash device drivers. These flags are used in addition
+# to the set of global flags.
+#
+cdl_option CYGPKG_IO_FLASH_CFLAGS_ADD {
+    # Flavor: data
+    # No user value, uncomment the following line to provide one.
+    # user_value ""
+    # value_source default
+    # Default value: ""
+};
+
+# Suppressed compiler flags
+# This option modifies the set of compiler flags for
+# building the flash device drivers. These flags are removed from
+# the set of global flags if present.
+#
+cdl_option CYGPKG_IO_FLASH_CFLAGS_REMOVE {
+    # Flavor: data
+    # No user value, uncomment the following line to provide one.
+    # user_value ""
+    # value_source default
+    # Default value: ""
+};
+
+# Flash device driver tests
+# This option specifies the set of tests for the flash device drivers.
+#
+cdl_component CYGPKG_IO_FLASH_TESTS {
+    # Calculated value:  (CYGSEM_IO_FLASH_LEGACY_API ? "tests/flash1" : "") .
+    #                              (CYGPKG_IO_FLASH_BLOCK_DEVICE ? " tests/flashdev" : "") 
+    #     CYGSEM_IO_FLASH_LEGACY_API == 1
+    #     CYGPKG_IO_FLASH_BLOCK_DEVICE == 0
+    # Flavor: data
+    # Current_value: tests/flash1
+};
+
+# >
+# Start offset from flash base
+# This gives the offset from the base of flash where tests
+# can be run.  It is important to set this correctly, as an
+# incorrect value could allow the tests to write over critical
+# portions of the FLASH device and possibly render the target
+# board totally non-functional.
+#
+cdl_option CYGNUM_IO_FLASH_TEST_OFFSET {
+    # Flavor: data
+    # No user value, uncomment the following line to provide one.
+    # user_value 0x00100000
+    # value_source default
+    # Default value: 0x00100000
+};
+
+# Length
+# This gives the length of the region of flash used for testing.
+#
+cdl_option CYGNUM_IO_FLASH_TEST_LENGTH {
+    # Flavor: data
+    # No user value, uncomment the following line to provide one.
+    # user_value 0x00100000
+    # value_source default
+    # Default value: 0x00100000
+};
+
+# <
+# <
+# External NOR flash support
+# This option enables support for the external NOR flash device.
+#
+cdl_option CYGHWR_HAL_CORTEXM_STM32_FLASH {
+    # ActiveIf constraint: CYGPKG_IO_FLASH
+    #     CYGPKG_IO_FLASH == v3_0
+    #   --> 1
+
+    # Flavor: bool
+    # No user value, uncomment the following line to provide one.
+    # user_value 0
+    # value_source default
+    # Default value: 0
+};
+
+# Atmel AT25DFxxx flash memory support
+# Flash memory support for Atmel AT95DFxxx SPI flash devices
+# and compatibles.  This driver implements the V2 flash driver API.
+#
+cdl_package CYGPKG_DEVS_FLASH_SPI_AT25DFXXX {
+    # Packages cannot be added or removed, nor can their version be changed,
+    # simply by editing their value. Instead the appropriate configuration
+    # should be used to perform these actions.
+
+    # ActiveIf constraint:  CYGPKG_IO_FLASH && CYGPKG_IO_SPI 
+    #     CYGPKG_IO_FLASH == v3_0
+    #     CYGPKG_IO_SPI == v3_0
+    #   --> 1
+
+    # This value cannot be modified here.
+    # Flavor: booldata
+    # Current value: 1 current
+};
+
+# >
+# Hardware AT25DFxxx FLASH device drivers
+# This calculated option gives the number of AT25DFxxx flash
+# devices on the current platform.
+#
+cdl_interface CYGHWR_DEVS_FLASH_SPI_AT25DFXXX_DEVICE {
+    # No options implement this inferface
+    # This value cannot be modified here.
+    # Flavor: data
+    # Current_value: 0
+};
+
+# Flash block size in bytes
+# Most Atmel AT95DFxxx SPI flash devices can use block size of
+# 4KB, 32K or 64KB. This option allow users to select the flash
+# geometry to use. For device such as AT25F512 not supporting
+# 64K, selecting a wrong geometry will force the driver to
+# abort the initialization process.
+#
+cdl_option CYGPKG_DEVS_FLASH_SPI_AT25DFXXX_BLOCK_SIZE {
+    # Flavor: data
+    user_value 65536
+    # value_source user
+    # Default value: 4096
+    # Legal values:  4096 32768 65536 
+};
+
+# Flash read transaction
+# Atmel AT95DFxxx SPI flash devices differentiate read access
+# according to the throughput required for this operation. The
+# driver allows fast and slow reading operation. Some parts
+# also supports the Atmel RapidS protocol.
+#
+cdl_option CYGPKG_DEVS_FLASH_SPI_AT25DFXXX_READ_MODE {
+    # Flavor: data
+    # No user value, uncomment the following line to provide one.
+    # user_value FAST
+    # value_source default
+    # Default value: FAST
+    # Legal values:  "FAST" "SLOW" "RAPIDS"
+};
+
+# Maximum read block size
+# In theory it is possible to read back the entire flash
+# contents using a single SPI transaction.  However, some SPI
+# bus drivers have a maximum transaction size - for example
+# transactions may be limited to the length of a DMA bounce
+# buffer.  Setting this option to a non-zero value specifies
+# the maximum SPI bus transfer size which will be used when
+# reading back data.  Read requests for areas larger than
+# this block size will automatically be split into a series
+# of smaller SPI bus transactions.
+#
+cdl_option CYGNUM_DEVS_FLASH_SPI_AT25DFXXX_READ_BLOCK_SIZE {
+    # Flavor: data
+    # No user value, uncomment the following line to provide one.
+    # user_value 0
+    # value_source default
+    # Default value: 0
+};
+
 # <
 # <
 # I2C support
@@ -1491,6 +2576,12 @@ cdl_component CYGSEM_HAL_VIRTUAL_VECTOR_SUPPORT {
     # Calculated value: 1
     # Flavor: bool
     # Current value: 1
+
+    # The following properties are affected by this value
+    # option CYGFUN_IO_FLASH_BLOCK_FROM_FIS
+    #     Requires: CYGSEM_HAL_VIRTUAL_VECTOR_SUPPORT
+    # option CYGFUN_IO_FLASH_BLOCK_FROM_FIS
+    #     DefaultValue: CYGSEM_HAL_VIRTUAL_VECTOR_SUPPORT
 };
 
 # >
@@ -2662,6 +3753,10 @@ cdl_package CYGPKG_IO {
     #   --> 1
 
     # The following properties are affected by this value
+    # component CYGPKG_IO_FLASH_BLOCK_DEVICE
+    #     ActiveIf: CYGPKG_IO
+    # component CYGPKG_IO_FLASH_BLOCK_DEVICE_LEGACY
+    #     ActiveIf: CYGPKG_IO
     # package CYGPKG_IO_SERIAL
     #     ActiveIf: CYGPKG_IO
     # package CYGPKG_LIBC_STDIO
@@ -7482,6 +8577,8 @@ cdl_package CYGPKG_ISOINFRA {
     # Current value: 1 v3_0
 
     # The following properties are affected by this value
+    # package CYGPKG_IO_FLASH
+    #     Requires: CYGPKG_ISOINFRA
     # component CYGPKG_IO_SERIAL_TERMIOS
     #     Requires: CYGPKG_ISOINFRA
     # component CYGPKG_IO_SERIAL_TERMIOS
@@ -8688,6 +9785,8 @@ cdl_interface CYGINT_ISO_STRING_STRFUNCS {
     # The following properties are affected by this value
     # interface CYGINT_ISO_STRING_STRFUNCS
     #     Requires:  1 >= CYGINT_ISO_STRING_STRFUNCS 
+    # package CYGPKG_IO_FLASH
+    #     Requires: CYGINT_ISO_STRING_STRFUNCS
     # option CYGFUN_INFRA_DUMMY_STRLEN
     #     Requires: !CYGINT_ISO_STRING_STRFUNCS
     # option CYGFUN_INFRA_DUMMY_STRLEN
