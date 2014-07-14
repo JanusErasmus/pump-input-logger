@@ -1,0 +1,22 @@
+version:	
+	@echo 'Generating version.h'
+	@echo ' '
+	@echo "#ifndef _VERSION_H" > ../src/version.h
+	@echo "#define _VERSION_H" >> ../src/version.h
+	@echo "#define VERSION_NUM $(VERSION) " >> ../src/version.h
+	@echo "#define BUILD_DATE \"`date`\" " >> ../src/version.h
+	@echo "#endif " >> ../src/version.h
+
+
+copy-binary:	
+	-arm-eabi-objcopy -O binary ./${BINARY_NAME}.hex ../${BINARY_NAME}.bin
+	@echo ' '
+	
+	@arm-eabi-size ./${BINARY_NAME}.hex
+	@echo ' '
+
+	@echo 'Build successfull...'
+	@echo 'Version String : $(VERSION)'
+	@echo 'Build Timestamp: '`date` 	
+	@echo ' '
+
