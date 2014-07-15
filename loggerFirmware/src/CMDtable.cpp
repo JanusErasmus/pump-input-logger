@@ -7,6 +7,7 @@
 #include "modem.h"
 #include "nvm.h"
 #include "sys_mon.h"
+#include "log.h"
 #include "MCP_rtc.h"
 #include "picaxe_lcd.h"
 
@@ -49,6 +50,11 @@ TermCMD::cmd_table_t TermCMD::mCmdTable [] =
 
     {"SYSMON"	,0,0,0},
     {"pwrModem", "<stat>",	"Set SYSMON pwrStat and Press modem PWR_KEY", cSysMon::setPowerStat},
+    {"nav", "<u,d,l,r>",	"Navigate Display", cSysMon::navigate},
+
+    {"Logs"	,0,0,0},
+    {"show", "",			"Show all logs", cLog::logDebug},
+    {"log", "",				"Log a event", cLog::logDebug},
 
     {"RTC TIME"	,0,0,0},
     {"setRTC", "<yyyy mm dd HH MM SS>","Set MCP RTC", cRTC::set},

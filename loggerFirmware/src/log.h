@@ -2,6 +2,7 @@
 #define _LOG_H_
 #include "event.h"
 #include "debug.h"
+#include "term.h"
 
 class cLog : public cDebug
 {
@@ -36,6 +37,8 @@ public:
    cyg_uint32 count();
 
    void showLogs();
+
+   static void logDebug(cTerm & term, int argc,char * argv[]);
 
    virtual  ~cLog();
 };

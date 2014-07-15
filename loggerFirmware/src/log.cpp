@@ -7,7 +7,6 @@
 #include "utils.h"
 #include "var_io.h"
 #include "crc.h"
-#include "sys_mon.h"
 
 cLog *cLog::__instance = 0;
 
@@ -30,7 +29,7 @@ cLog::cLog(cyg_uint32 sectorStart)
 
 	mStartAddr = sectorStart;
 	dbg_printf(1,"LOG: Start at 0x%08X\n",mStartAddr);
-	mEndAddr = 0x40000;
+	mEndAddr = 0x80000;
 	dbg_printf(1,"LOG: End at 0x%08X\n",mEndAddr);
 	diag_printf("LOG: Space for %d events\n",(int)((mEndAddr - mStartAddr)/sizeof(sEventData)));
 
@@ -46,10 +45,12 @@ cLog::cLog(cyg_uint32 sectorStart)
 		/* The tail is the next valid entry we find from here */
 		find_entry(first_valid,tail_addr,true ,true);
 		mReadAddr = tail_addr;
+//		diag_printf("readAddr: 0x%08X\n", mReadAddr);
 
 		/* This is the head */
 		find_entry(tail_addr,head_addr);
 		mCurrAddr = head_addr;
+//		diag_printf("currAddr: 0x%08X\n", mCurrAddr);
 
 		set_sequence();
 		if(!check_space(mCurrAddr))
@@ -83,8 +84,7 @@ void cLog::logEvent(cEvent *e)
    dbg_printf(1, "LOG: Log evt %d @ 0x%08X\n",e->getSeq(), mCurrAddr);
 
 
-   if(!cyg_flash_program(mCurrAddr,(cyg_uint8 *)&evt_data,sizeof(sEventData), NULL))
-	   return;
+   cyg_flash_program(mCurrAddr,(cyg_uint8 *)&evt_data,sizeof(sEventData), NULL);
 
    dbg_printf(2, "\nW Log @ %p len: %d\n", mCurrAddr, sizeof(sEventData));
    dbg_dump_buf(2, (cyg_uint8 *)&evt_data,sizeof(sEventData));
@@ -114,15 +114,14 @@ cyg_bool cLog::find_entry(cyg_uint32 start, cyg_uint32 &entry_addr, cyg_bool val
       entry_addr = curr_addr;
 //      diag_printf("log?: 0x%08X\n",entry_addr);
 
-      if(!cyg_flash_read(entry_addr,(cyg_uint8 *)&evt_data,sizeof(evt_data), NULL))
-    	  return false;
+      cyg_flash_read(entry_addr,(cyg_uint8 *)&evt_data,sizeof(evt_data), NULL);
 
       //when sequence default value its end of sequences
        if(evt_data.mSeq == 0xFFFFFFFF)
         	  return false;
 
       event.setData(evt_data);
-      //event. showEvent();
+//      event. showEvent();
       if(event.isValid() == valid)
       {
     	  if(!processed)
@@ -227,8 +226,7 @@ cyg_bool cLog::readEvent(cEvent *e)
 	cyg_mutex_lock(&mLogMutex);
 
    sEventData evt_data;
-   if(!cyg_flash_read(mReadAddr,(cyg_uint8 *)&evt_data,sizeof(sEventData), NULL))
-	   return false;
+   cyg_flash_read(mReadAddr,(cyg_uint8 *)&evt_data,sizeof(sEventData), NULL);
 
    dbg_printf(2, "\nR Log @ %p len: %d\n", mReadAddr, sizeof(sEventData));
    dbg_dump_buf(2, (cyg_uint8 *)&evt_data,sizeof(sEventData));
@@ -334,8 +332,7 @@ void cLog::showLogs()
 	 sEventData evt_data;
 	 do
 	 {
-		 if(!cyg_flash_read(tail_addr,(cyg_uint8 *)&evt_data,sizeof(sEventData), NULL))
-			 return;
+		 cyg_flash_read(tail_addr,(cyg_uint8 *)&evt_data,sizeof(sEventData), NULL);
 		 dbg_printf(2, "\nR Log @ %p len: %d\n", tail_addr, sizeof(sEventData));
 		 dbg_dump_buf(2, (cyg_uint8 *)&evt_data,sizeof(sEventData));
 		 dbg_printf(2, "\n");
@@ -357,6 +354,27 @@ void cLog::showLogs()
 
 	 }while(evt_data.mSeq != 0xFFFFFFFF);
 
+}
+
+void cLog::logDebug(cTerm & term, int argc,char * argv[])
+{
+	if(!__instance)
+		return;
+
+	if(!strcmp(argv[0], "show"))
+	{
+		__instance->showLogs();
+	}
+	else if(!strcmp(argv[0], "log"))
+	{
+		cEvent e((cyg_uint8)0,(cyg_uint8)1,0x00);
+		__instance->logEvent(&e);
+
+		diag_printf("Logged Event:\n");
+		e.showEvent();
+
+
+	}
 }
 
 cLog::~cLog()

@@ -7,6 +7,7 @@
 #include <time.h>
 
 #include "picaxe_lcd.h"
+#include "version.h"
 
 cPICAXEserialLCD* cPICAXEserialLCD::_instance = 0;
 
@@ -35,7 +36,7 @@ cPICAXEserialLCD::cPICAXEserialLCD(char* serDev)
 	cyg_serial_info_t info;
 
 	info.flags = 0;
-	info.baud = CYGNUM_SERIAL_BAUD_115200;
+	info.baud = CYGNUM_SERIAL_BAUD_2400;
 	info.stop = CYGNUM_SERIAL_STOP_1;
 	info.parity = CYGNUM_SERIAL_PARITY_NONE;
 	info.word_length = CYGNUM_SERIAL_WORD_LENGTH_8;
@@ -61,17 +62,102 @@ cPICAXEserialLCD::cPICAXEserialLCD(char* serDev)
 			CYG_IO_SET_CONFIG_TTY_INFO,
 			&tty_info,
 			&len);
+
+	banner();
+}
+
+void cPICAXEserialLCD::banner()
+{
+	clear();
+	println(1, "POMP LOGER");
+	println(2, "Ver: %d.%d.%d",(VERSION_NUM & 0xFF0000)>>16,(VERSION_NUM & 0xFF00)>>8,(VERSION_NUM & 0xFF));
+}
+
+void cPICAXEserialLCD::clear()
+{
+	printCmd(0x01);
+}
+
+void cPICAXEserialLCD::hide()
+{
+	printCmd(0x08);
+}
+
+void cPICAXEserialLCD::restore()
+{
+	printCmd(0x0C);
+}
+
+void cPICAXEserialLCD::print(cyg_uint8* buff, cyg_uint8 len)
+{
+	for(cyg_uint8 k = 0; k < len; k++)
+	{
+		cyg_uint32 tx = 1;
+		Cyg_ErrNo err = cyg_io_write(mSerCMDHandle, &buff[k], &tx);
+		if(err < 0)
+		{
+			diag_printf("PICAXE TXerr: %s", strerror(-err));
+			return;
+		}
+		cyg_thread_delay(6);
+	}
+}
+
+void cPICAXEserialLCD::printCmd(cyg_uint8 cmd)
+{
+	cyg_uint8 buff[2];
+	buff[0] = 254;
+	buff[1] = cmd;
+
+	print(buff, 2);
+}
+
+void cPICAXEserialLCD::print(const char *string)
+{
+	cyg_uint8 len = strlen(string);
+	if(len > 20)
+		len = 20;
+
+	print((cyg_uint8*)string, len);
+}
+
+void cPICAXEserialLCD::println(cyg_uint8 line, const char *f, ...)
+{
+	char buff[64];
+	va_list vl;
+	va_start(vl,f);
+	vsprintf(buff,f,vl);
+	va_end(vl);
+
+	switch(line)
+	{
+	default:
+	case 1:
+		printCmd(0x80);
+		break;
+	case 2:
+		printCmd(0xC0);
+			break;
+	case 3:
+		printCmd(0x94);
+			break;
+	case 4:
+		printCmd(0xD4);
+			break;
+
+	}
+	print(buff);
 }
 
 void cPICAXEserialLCD::debugCMD(cTerm & term, int argc,char * argv[])
 {
-	char str[] = {"hello"};
-	cyg_uint32 len = strlen(str);
-	_instance->dbg_printf(3, "PICAXE: (%d) - %s \n", len, str);
-
-	Cyg_ErrNo err = cyg_io_write(_instance->mSerCMDHandle, str, &len);
-	if(err < 0)
-		diag_printf("PICAXE TXerr: %s", strerror(-err));
+	_instance->clear();
+	_instance->hide();
+	_instance->println(1, "LINE 1...baie lang string word geprint->");
+	_instance->println(2, "LINE 2  ->");
+	_instance->println(3, "LINE 3  ;-)");
+	_instance->println(4, "LINE 4  :-0");
+	_instance->restore();
 }
 
 cPICAXEserialLCD::~cPICAXEserialLCD()

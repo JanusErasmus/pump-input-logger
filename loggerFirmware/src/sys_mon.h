@@ -16,14 +16,22 @@ class cSysMon : public cDebug, public cActionQueue
 public:
 	enum e_sysmon_action
 	{
-		sysmonActionTest,
-		sysmonActionPowerLoss,
-		sysmonActionPowerRestored,
-		sysmonActionAlarm,
-		sysmonActionSMS
+		sysmonActionEnter,
+		sysmonActionCancel,
+		sysmonActionUp,
+		sysmonActionDown,
+		sysmonActionLeft,
+		sysmonActionRight
 	};
 
 private:
+
+	enum e_menu
+	{
+		banner,
+		logs
+	}mMenu;
+
 	cSysMon();
 	static cSysMon* _instance;
 
@@ -48,6 +56,8 @@ private:
 	cyg_bool handleAction(cyg_addrword_t action);
 	cyg_bool handleEvent(s_event* evt);
 
+	void handleLogMenu(e_sysmon_action a);
+
 	cLED::eLEDstatus registerModem();
 	cLED::eLEDstatus checkSIM();
 
@@ -57,14 +67,21 @@ private:
 	void handleSMSlist();
 	void handleSMScommand(cMdmReadSMS::sSMS * sms);
 
+	void sysBanner();
+
 public:
 	static void init();
 	static cSysMon* get();
 
-	void showStat();
-	time_t getLastSync();
+	void enter();
+	void cancel();
+	void up();
+	void down();
+	void left();
+	void right();
 
 	static void setPowerStat(cTerm & term, int argc,char * argv[]);
+	static void navigate(cTerm & term, int argc,char * argv[]);
 
 	virtual ~cSysMon();
 };

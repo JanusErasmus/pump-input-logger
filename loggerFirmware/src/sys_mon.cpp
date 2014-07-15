@@ -7,6 +7,7 @@
 #include "nvm.h"
 #include "crc.h"
 #include "input_port.h"
+#include "picaxe_lcd.h"
 
 cSysMon* cSysMon::_instance = 0;
 
@@ -28,6 +29,8 @@ cSysMon::cSysMon()
 {
 	mRXlen = 0;
 	replied = false;
+
+	mMenu = banner;
 
 	mWatchDog = new wdKicker(300);
 
@@ -94,23 +97,104 @@ cyg_bool cSysMon::monitor()
 		return stat;
 	}
 
-
-
 	return false;
 }
 
+void cSysMon::enter()
+{
+	QAction(new s_action(sysmonActionEnter));
+}
 
+void cSysMon::cancel()
+{
+	QAction(new s_action(sysmonActionCancel));
+}
+
+
+void cSysMon::up()
+{
+	QAction(new s_action(sysmonActionUp));
+}
+
+void cSysMon::down()
+{
+	QAction(new s_action(sysmonActionDown));
+}
+
+void cSysMon::left()
+{
+	QAction(new s_action(sysmonActionLeft));
+}
+
+void cSysMon::right()
+{
+	QAction(new s_action(sysmonActionRight));
+}
 
 cyg_bool cSysMon::handleAction(cyg_addrword_t action)
 {
-	switch(action)
+	switch(mMenu)
 	{
+	case banner:
+		if(action == sysmonActionEnter)
+		{
+			diag_printf("SYSMON: Enter\n");
+			if(mMenu == banner)
+			{
+				mMenu = logs;
+				cPICAXEserialLCD::get()->clear();
+				cPICAXEserialLCD::get()->println(1,"   LOGS:");
+			}
+		}
+		break;
+
+	case logs:
+		if(action == sysmonActionCancel)
+		{
+			diag_printf("SYSMON: Cancel\n");
+			mMenu = banner;
+			sysBanner();
+		}
+		else
+			handleLogMenu((e_sysmon_action)action);
+		break;
+
 	default:
 		diag_printf("Could not handle action: %d\n", action);
 		break;
 	}
-
 	return true;
+}
+
+void cSysMon::handleLogMenu(e_sysmon_action action)
+{
+	switch(action)
+		{
+		case sysmonActionEnter:
+			diag_printf("SYS LOG: Enter\n");
+			break;
+		case sysmonActionUp:
+			diag_printf("SYS LOG: Up\n");
+			break;
+		case sysmonActionDown:
+			diag_printf("SYS LOG: Down\n");
+			break;
+		case sysmonActionLeft:
+			diag_printf("SYS LOG: Left\n");
+			break;
+		case sysmonActionRight:
+			diag_printf("SYS LOG: Right\n");
+			break;
+		default:
+			diag_printf("Could not handle action: %d\n", action);
+			break;
+		}
+}
+
+void cSysMon::sysBanner()
+{
+	cPICAXEserialLCD::get()->clear();
+	cPICAXEserialLCD::get()->println(1,"<Enter> for logs:");
 }
 
 cyg_bool cSysMon::handleEvent(s_event* evt)
@@ -395,7 +479,42 @@ void cSysMon::setPowerStat(cTerm & term, int argc,char * argv[])
 	}
 }
 
-
+void cSysMon::navigate(cTerm & term, int argc,char * argv[])
+{
+	if(!_instance)
+		return;
+	if(argc > 1)
+	{
+		if(!strcmp(argv[1], "e"))
+		{
+			_instance->enter();
+		}
+		if(!strcmp(argv[1], "c"))
+		{
+			_instance->cancel();
+		}
+		if(!strcmp(argv[1], "u"))
+		{
+			_instance->up();
+		}
+		else if(!strcmp(argv[1], "d"))
+		{
+			_instance->down();
+		}
+		else if(!strcmp(argv[1], "l"))
+		{
+			_instance->left();
+		}
+		else if(!strcmp(argv[1], "r"))
+		{
+			_instance->right();
+		}
+	}
+	else
+	{
+		diag_printf("Specify direction\n");
+	}
+}
 
 cSysMon::~cSysMon()
 {

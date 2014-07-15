@@ -15,6 +15,7 @@
 #include "input_port.h"
 #include "MCP_rtc.h"
 #include "sys_mon.h"
+#include "log.h"
 #include "picaxe_lcd.h"
 
 cInit * cInit::__instance = NULL;
@@ -117,6 +118,8 @@ void cInit::init_system()
 
 	cSysMon::init();
 	cInput::get()->setQueue(cSysMon::get());
+
+	cLog::init(0x40000);
 
 	cPICAXEserialLCD::init(SERIAL_CONFIG_DEVICE);
 }

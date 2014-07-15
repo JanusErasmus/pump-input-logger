@@ -2,6 +2,6 @@
 
 
 echo "loading $1 to RMMU"
-stm32flash -b 115200 -w $1  -g 0x0 /dev/ttyS0
+stm32flash -b 38400 -w $1  -g 0x0 /dev/ttyS0
 minicom -D /dev/ttyS0 -c on
 

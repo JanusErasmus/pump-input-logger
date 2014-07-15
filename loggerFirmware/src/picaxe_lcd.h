@@ -18,9 +18,21 @@ class cPICAXEserialLCD : public cDebug
 
     cPICAXEserialLCD(char* serDev);
 
+    void print(cyg_uint8* buff, cyg_uint8 len);
+    void printCmd(cyg_uint8 cmd);
+    void print(const char *string);
+
+    void banner();
+
 public:
 	static void init(char* serDev);
 	static cPICAXEserialLCD* get();
+
+	void clear();
+	void hide();
+	void restore();
+
+	void println(cyg_uint8 line, const char* f,...);
 
 	static void debugCMD(cTerm & term, int argc,char * argv[]);
 

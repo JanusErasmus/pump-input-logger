@@ -22,6 +22,7 @@ public:
 		cyg_addrword_t action;
 
 		s_action(cyg_uint8 type, cyg_addrword_t act);
+		s_action(cyg_addrword_t act);
 	};
 
 	struct s_event
