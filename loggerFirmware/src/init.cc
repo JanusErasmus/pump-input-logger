@@ -12,6 +12,7 @@
 #include "init.h"
 #include "term.h"
 #include "led.h"
+#include "output_port.h"
 #include "input_port.h"
 #include "MCP_rtc.h"
 #include "sys_mon.h"
@@ -100,12 +101,25 @@ void cInit::init_system()
 		cyg_thread_delay(10);
 	}
 
+	cLog::init(0x40000);
+
 	cyg_uint32 inputPortNumbers[] =
 	{
+			PORTE_INPUT(15), //up
+			PORTE_INPUT(12), //down
+			PORTD_INPUT(11), //enter
+			PORTD_INPUT( 1), //cancel
 			PORTD_INPUT( 9),
 			PORTD_INPUT( 8),
+ 	};
+	cInput::init(inputPortNumbers, 6);
+
+	cyg_uint32 outputPortNumbers[] =
+	{
+			PORTB_INPUT(3),
+			PORTD_INPUT(4),
 	};
-	cInput::init(inputPortNumbers, 2);
+	cOutput::init(outputPortNumbers, 2);
 
 	cLED::ledPins_s ledPinNumbers[] = //no pin is 0xFF
 	{
@@ -118,8 +132,6 @@ void cInit::init_system()
 
 	cSysMon::init();
 	cInput::get()->setQueue(cSysMon::get());
-
-	cLog::init(0x40000);
 
 	cPICAXEserialLCD::init(SERIAL_CONFIG_DEVICE);
 }

@@ -8,6 +8,7 @@
 #include "crc.h"
 #include "input_port.h"
 #include "picaxe_lcd.h"
+#include "log.h"
 
 cSysMon* cSysMon::_instance = 0;
 
@@ -142,8 +143,8 @@ cyg_bool cSysMon::handleAction(cyg_addrword_t action)
 			if(mMenu == banner)
 			{
 				mMenu = logs;
-				cPICAXEserialLCD::get()->clear();
-				cPICAXEserialLCD::get()->println(1,"   LOGS:");
+				cLog::get()->reset();
+				QAction(new s_action(sysmonActionDown));
 			}
 		}
 		break;
@@ -175,9 +176,15 @@ void cSysMon::handleLogMenu(e_sysmon_action action)
 			break;
 		case sysmonActionUp:
 			diag_printf("SYS LOG: Up\n");
+			cLog::get()->readPrev();
+			logMenuShowLog();
 			break;
 		case sysmonActionDown:
+		{
 			diag_printf("SYS LOG: Down\n");
+			cLog::get()->readNext();
+			logMenuShowLog();
+		}
 			break;
 		case sysmonActionLeft:
 			diag_printf("SYS LOG: Left\n");
@@ -189,6 +196,30 @@ void cSysMon::handleLogMenu(e_sysmon_action action)
 			diag_printf("Could not handle action: %d\n", action);
 			break;
 		}
+}
+
+void cSysMon::logMenuShowLog()
+{
+	cyg_bool stat = true;
+	cEvent e;
+
+	if(!cLog::get()->readEvent(&e))
+	{
+		cLog::get()->reset();
+		stat = cLog::get()->readEvent(&e);
+	}
+
+	cPICAXEserialLCD::get()->clear();
+	cPICAXEserialLCD::get()->println(1,"PUMP CHANGE:");
+
+	if(stat)
+	{
+		cPICAXEserialLCD::get()->showEvent(&e);
+	}
+	else
+	{
+		cPICAXEserialLCD::get()->println(2,"EMPTY");
+	}
 }
 
 void cSysMon::sysBanner()
@@ -203,11 +234,27 @@ cyg_bool cSysMon::handleEvent(s_event* evt)
 	//digital input
 	if(evt->portNumber != 0xFF)
 	{
-		diag_printf("SYSMON: Input %d : %s\n", evt->portNumber, evt->state?"close":"open");
+		//diag_printf("SYSMON: Input %d : %s\n", evt->portNumber, evt->state?"close":"open");
 
-
+		if(!evt->state)
+		{
+			switch(evt->portNumber)
+			{
+			case 0:
+				up();
+				break;
+			case 1:
+				down();
+				break;
+			case 2:
+				enter();
+				break;
+			case 3:
+				cancel();
+				break;
+			}
+		}
 	}
-
 	return true;
 }
 

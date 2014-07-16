@@ -66,10 +66,28 @@ cPICAXEserialLCD::cPICAXEserialLCD(char* serDev)
 	banner();
 }
 
+void cPICAXEserialLCD::showEvent(cEvent * evt)
+{
+	if(evt->getType() == cEvent::EVENT_TEMP)
+	{
+		//printf("Value: %.1f\t", mData.mTemp);
+	}
+
+	if(evt->getType() == cEvent::EVENT_INPUT)
+	{
+		println(3, "State: %s", evt->getState()?"ON":"OFF");
+	}
+
+	println(2,"P[%d]", evt->getPort());
+	//printf("Value: %.1f\t", mData.mTemp);
+	cyg_uint32 evtTime = evt->getTimeStamp();
+	println(4, ctime((time_t*)&evtTime));
+}
+
 void cPICAXEserialLCD::banner()
 {
 	clear();
-	println(1, "POMP LOGER");
+	println(1, "cPICAXEserialLCD");
 	println(2, "Ver: %d.%d.%d",(VERSION_NUM & 0xFF0000)>>16,(VERSION_NUM & 0xFF00)>>8,(VERSION_NUM & 0xFF));
 }
 

@@ -4,6 +4,7 @@
 #include "stm32cpu.h"
 #include "version.h"
 #include "input_port.h"
+#include "output_port.h"
 #include "modem.h"
 #include "nvm.h"
 #include "sys_mon.h"
@@ -35,6 +36,8 @@ TermCMD::cmd_table_t TermCMD::mCmdTable [] =
 
     {"IO"	,0,0,0},
     {"i"	,"",			"Displays the port input states", cInput::showInputs},
+    {"o"	,"",			"Displays the port output states", cOutput::showOutputs},
+    {"s"	,"",			"set a port output states", cOutput::setOutput},
 
     {"NVM"	,0,0,0},
     {"cfg","<param to change>","Configures the dial values", cNVM::config},

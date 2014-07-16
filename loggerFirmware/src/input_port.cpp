@@ -5,7 +5,7 @@
 #include "var_io.h"
 #include "input_port.h"
 #include "definitions.h"
-#include "led.h"
+#include "sys_mon.h"
 
 cInput* cInput::__instance = NULL;
 

@@ -57,6 +57,7 @@ private:
 	cyg_bool handleEvent(s_event* evt);
 
 	void handleLogMenu(e_sysmon_action a);
+	void logMenuShowLog();
 
 	cLED::eLEDstatus registerModem();
 	cLED::eLEDstatus checkSIM();

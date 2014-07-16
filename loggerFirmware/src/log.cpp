@@ -1,5 +1,6 @@
 #include <cyg/kernel/diag.h>
 #include <cyg/io/flash.h>
+#include <stdlib.h>
 
 #include "log.h"
 #include "led.h"
@@ -266,6 +267,11 @@ cyg_bool cLog::readNext()
    return true;
 }
 
+void cLog::reset()
+{
+	mReadAddr = mStartAddr;
+}
+
 cyg_uint32 cLog::count()
 {
 	if(mCurrAddr >= mReadAddr)
@@ -367,12 +373,33 @@ void cLog::logDebug(cTerm & term, int argc,char * argv[])
 	}
 	else if(!strcmp(argv[0], "log"))
 	{
-		cEvent e((cyg_uint8)0,(cyg_uint8)1,0x00);
-		__instance->logEvent(&e);
+		if(argc > 1)
+		{
+			cyg_uint8 port = 0;
+			cyg_uint8 state = 0;
+			cyg_uint8 cnt = strtoul(argv[1],NULL,10);
 
-		diag_printf("Logged Event:\n");
-		e.showEvent();
 
+			diag_printf("Logging %d events:\n", cnt);
+
+			for(cyg_uint8 k = 0; k < cnt; k++)
+			{
+				cEvent e(port,(cyg_uint8)state,0x100 * port);
+				port++;
+				state = ~(state);
+
+				__instance->logEvent(&e);
+				e.showEvent();
+			}
+		}
+		else
+		{
+			cEvent e((cyg_uint8)0,(cyg_uint8)1,0x00);
+			__instance->logEvent(&e);
+
+			diag_printf("Logged Event:\n");
+			e.showEvent();
+		}
 
 	}
 }

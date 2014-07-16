@@ -31,6 +31,8 @@ public:
    cyg_bool readPrev();
    cyg_bool acknowledge();
    cyg_bool readNext();
+   void reset();
+
    void logEvent(cEvent *e);
    cyg_bool readEvent(cEvent *e);
 
