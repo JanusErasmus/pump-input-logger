@@ -10,27 +10,17 @@
 #include "debug.h"
 #include "watchdog.h"
 #include "led.h"
+#include "main_menu.h"
 
 class cSysMon : public cDebug, public cActionQueue
 {
 public:
 	enum e_sysmon_action
 	{
-		sysmonActionEnter,
-		sysmonActionCancel,
-		sysmonActionUp,
-		sysmonActionDown,
-		sysmonActionLeft,
-		sysmonActionRight
+		sysmonAction,
 	};
 
 private:
-
-	enum e_menu
-	{
-		banner,
-		logs
-	}mMenu;
 
 	cSysMon();
 	static cSysMon* _instance;
@@ -50,14 +40,13 @@ private:
 
 	cyg_mutex_t mMonitorMutex;
 
+	cLCDmenu * mMenu;
+
 	wdKicker* mWatchDog;
 
 	cyg_bool monitor();
 	cyg_bool handleAction(cyg_addrword_t action);
 	cyg_bool handleEvent(s_event* evt);
-
-	void handleLogMenu(e_sysmon_action a);
-	void logMenuShowLog();
 
 	cLED::eLEDstatus registerModem();
 	cLED::eLEDstatus checkSIM();
@@ -68,18 +57,9 @@ private:
 	void handleSMSlist();
 	void handleSMScommand(cMdmReadSMS::sSMS * sms);
 
-	void sysBanner();
-
 public:
 	static void init();
 	static cSysMon* get();
-
-	void enter();
-	void cancel();
-	void up();
-	void down();
-	void left();
-	void right();
 
 	static void setPowerStat(cTerm & term, int argc,char * argv[]);
 	static void navigate(cTerm & term, int argc,char * argv[]);

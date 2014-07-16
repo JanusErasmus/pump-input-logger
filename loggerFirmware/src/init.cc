@@ -132,8 +132,6 @@ void cInit::init_system()
 
 	cSysMon::init();
 	cInput::get()->setQueue(cSysMon::get());
-
-	cPICAXEserialLCD::init(SERIAL_CONFIG_DEVICE);
 }
 
 void cInit::setup_peripherals()

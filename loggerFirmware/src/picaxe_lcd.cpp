@@ -66,29 +66,49 @@ cPICAXEserialLCD::cPICAXEserialLCD(char* serDev)
 	banner();
 }
 
-void cPICAXEserialLCD::showEvent(cEvent * evt)
-{
-	if(evt->getType() == cEvent::EVENT_TEMP)
-	{
-		//printf("Value: %.1f\t", mData.mTemp);
-	}
-
-	if(evt->getType() == cEvent::EVENT_INPUT)
-	{
-		println(3, "State: %s", evt->getState()?"ON":"OFF");
-	}
-
-	println(2,"P[%d]", evt->getPort());
-	//printf("Value: %.1f\t", mData.mTemp);
-	cyg_uint32 evtTime = evt->getTimeStamp();
-	println(4, ctime((time_t*)&evtTime));
-}
-
 void cPICAXEserialLCD::banner()
 {
 	clear();
 	println(1, "cPICAXEserialLCD");
 	println(2, "Ver: %d.%d.%d",(VERSION_NUM & 0xFF0000)>>16,(VERSION_NUM & 0xFF00)>>8,(VERSION_NUM & 0xFF));
+}
+
+void cPICAXEserialLCD::setCursor(cyg_uint8 row, cyg_uint8 col)
+{
+	if(row == 0xFF || col == 0xFF)
+		return;
+
+	if(col > 19)
+		col = 19;
+
+	switch(row)
+	{
+	default:
+	case 1:
+		printCmd(0x80);
+		break;
+	case 2:
+		printCmd(0xC0);
+		break;
+	case 3:
+		printCmd(0x94);
+		break;
+	case 4:
+		printCmd(0xD4);
+		break;
+
+	}
+}
+
+void cPICAXEserialLCD::showCursor(cyg_uint8 row, cyg_uint8 col)
+{
+	setCursor(row, col);
+	printCmd(0x0D);
+}
+
+void cPICAXEserialLCD::hideCursor()
+{
+	printCmd(0x0C);
 }
 
 void cPICAXEserialLCD::clear()
@@ -147,23 +167,7 @@ void cPICAXEserialLCD::println(cyg_uint8 line, const char *f, ...)
 	vsprintf(buff,f,vl);
 	va_end(vl);
 
-	switch(line)
-	{
-	default:
-	case 1:
-		printCmd(0x80);
-		break;
-	case 2:
-		printCmd(0xC0);
-			break;
-	case 3:
-		printCmd(0x94);
-			break;
-	case 4:
-		printCmd(0xD4);
-			break;
-
-	}
+	setCursor(line, 0);
 	print(buff);
 }
 

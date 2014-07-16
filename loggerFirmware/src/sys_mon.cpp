@@ -8,7 +8,6 @@
 #include "crc.h"
 #include "input_port.h"
 #include "picaxe_lcd.h"
-#include "log.h"
 
 cSysMon* cSysMon::_instance = 0;
 
@@ -31,7 +30,9 @@ cSysMon::cSysMon()
 	mRXlen = 0;
 	replied = false;
 
-	mMenu = banner;
+	cPICAXEserialLCD::init(SERIAL_CONFIG_DEVICE);
+	mMenu = new cMainMenu(cPICAXEserialLCD::get());
+	mMenu->open();
 
 	mWatchDog = new wdKicker(300);
 
@@ -101,131 +102,10 @@ cyg_bool cSysMon::monitor()
 	return false;
 }
 
-void cSysMon::enter()
-{
-	QAction(new s_action(sysmonActionEnter));
-}
-
-void cSysMon::cancel()
-{
-	QAction(new s_action(sysmonActionCancel));
-}
-
-
-void cSysMon::up()
-{
-	QAction(new s_action(sysmonActionUp));
-}
-
-void cSysMon::down()
-{
-	QAction(new s_action(sysmonActionDown));
-}
-
-void cSysMon::left()
-{
-	QAction(new s_action(sysmonActionLeft));
-}
-
-void cSysMon::right()
-{
-	QAction(new s_action(sysmonActionRight));
-}
-
 cyg_bool cSysMon::handleAction(cyg_addrword_t action)
 {
-	switch(mMenu)
-	{
-	case banner:
-		if(action == sysmonActionEnter)
-		{
-			diag_printf("SYSMON: Enter\n");
-			if(mMenu == banner)
-			{
-				mMenu = logs;
-				cLog::get()->reset();
-				QAction(new s_action(sysmonActionDown));
-			}
-		}
-		break;
 
-	case logs:
-		if(action == sysmonActionCancel)
-		{
-			diag_printf("SYSMON: Cancel\n");
-			mMenu = banner;
-			sysBanner();
-		}
-		else
-			handleLogMenu((e_sysmon_action)action);
-		break;
-
-	default:
-		diag_printf("Could not handle action: %d\n", action);
-		break;
-	}
 	return true;
-}
-
-void cSysMon::handleLogMenu(e_sysmon_action action)
-{
-	switch(action)
-		{
-		case sysmonActionEnter:
-			diag_printf("SYS LOG: Enter\n");
-			break;
-		case sysmonActionUp:
-			diag_printf("SYS LOG: Up\n");
-			cLog::get()->readPrev();
-			logMenuShowLog();
-			break;
-		case sysmonActionDown:
-		{
-			diag_printf("SYS LOG: Down\n");
-			cLog::get()->readNext();
-			logMenuShowLog();
-		}
-			break;
-		case sysmonActionLeft:
-			diag_printf("SYS LOG: Left\n");
-			break;
-		case sysmonActionRight:
-			diag_printf("SYS LOG: Right\n");
-			break;
-		default:
-			diag_printf("Could not handle action: %d\n", action);
-			break;
-		}
-}
-
-void cSysMon::logMenuShowLog()
-{
-	cyg_bool stat = true;
-	cEvent e;
-
-	if(!cLog::get()->readEvent(&e))
-	{
-		cLog::get()->reset();
-		stat = cLog::get()->readEvent(&e);
-	}
-
-	cPICAXEserialLCD::get()->clear();
-	cPICAXEserialLCD::get()->println(1,"PUMP CHANGE:");
-
-	if(stat)
-	{
-		cPICAXEserialLCD::get()->showEvent(&e);
-	}
-	else
-	{
-		cPICAXEserialLCD::get()->println(2,"EMPTY");
-	}
-}
-
-void cSysMon::sysBanner()
-{
-	cPICAXEserialLCD::get()->clear();
-	cPICAXEserialLCD::get()->println(1,"<Enter> for logs:");
 }
 
 cyg_bool cSysMon::handleEvent(s_event* evt)
@@ -241,16 +121,16 @@ cyg_bool cSysMon::handleEvent(s_event* evt)
 			switch(evt->portNumber)
 			{
 			case 0:
-				up();
+				mMenu->up();
 				break;
 			case 1:
-				down();
+				mMenu->down();
 				break;
 			case 2:
-				enter();
+				mMenu->enter();
 				break;
 			case 3:
-				cancel();
+				mMenu->cancel();
 				break;
 			}
 		}
@@ -530,31 +410,24 @@ void cSysMon::navigate(cTerm & term, int argc,char * argv[])
 {
 	if(!_instance)
 		return;
+
 	if(argc > 1)
 	{
 		if(!strcmp(argv[1], "e"))
 		{
-			_instance->enter();
+			_instance->mMenu->enter();
 		}
 		if(!strcmp(argv[1], "c"))
 		{
-			_instance->cancel();
+			_instance->mMenu->cancel();
 		}
 		if(!strcmp(argv[1], "u"))
 		{
-			_instance->up();
+			_instance->mMenu->up();
 		}
 		else if(!strcmp(argv[1], "d"))
 		{
-			_instance->down();
-		}
-		else if(!strcmp(argv[1], "l"))
-		{
-			_instance->left();
-		}
-		else if(!strcmp(argv[1], "r"))
-		{
-			_instance->right();
+			_instance->mMenu->down();
 		}
 	}
 	else
