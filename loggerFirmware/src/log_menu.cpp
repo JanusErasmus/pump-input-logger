@@ -14,12 +14,12 @@ void cLogMenu::open()
 	showLog();
 }
 
-void cLogMenu::enter()
+void cLogMenu::handleEnter()
 {
 	diag_printf("LOG: enter\n");
 }
 
-void cLogMenu::cancel()
+void cLogMenu::handleCancel()
 {
 	diag_printf("LOG: cancel\n");
 
@@ -27,18 +27,18 @@ void cLogMenu::cancel()
 		mParent->returnParentMenu();
 }
 
-void cLogMenu::up()
+void cLogMenu::handleUp()
 {
 	diag_printf("LOG: up\n");
 	cLog::get()->readPrev();
-				showLog();
+	showLog();
 }
 
-void cLogMenu::down()
+void cLogMenu::handleDown()
 {
 	diag_printf("LOG: down\n");
 	cLog::get()->readNext();
-				showLog();
+	showLog();
 }
 
 void cLogMenu::showLog()

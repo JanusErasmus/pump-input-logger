@@ -9,8 +9,14 @@ class cLCDmenu
 	cyg_bool mOpened;
 
 protected:
+	cLCDmenu* mSubMenu;
 	const char* mHeading;
 	cPICAXEserialLCD* mLCD;
+
+	virtual void handleUp(){};
+	virtual void handleDown(){};
+	virtual void handleEnter(){};
+	virtual void handleCancel(){};
 
 public:
 	cLCDmenu(cPICAXEserialLCD* lcd, const char* heading);
@@ -20,10 +26,10 @@ public:
 
 	const char* getHeading(){ return mHeading; };
 
-	virtual void up() = 0;
-	virtual void down() = 0;
-	virtual void enter() = 0;
-	virtual void cancel() = 0;
+	void up();
+	void down();
+	void enter();
+	void cancel();
 
 	virtual void returnParentMenu(){};
 

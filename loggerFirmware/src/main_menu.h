@@ -8,17 +8,16 @@ class cMainMenu : public cLCDmenu
 	cLCDmenu* mSubMenus[1];
 	cyg_uint8 mMenuCnt;
 	cyg_uint8 mCursurPos;
-	cyg_uint8 mOpenMenu;
 
 public:
 	cMainMenu(cPICAXEserialLCD* lcd);
 
 	void open();
 
-	void enter();
-	void cancel();
-	void up();
-	void down();
+	void handleEnter();
+	void handleCancel();
+	void handleUp();
+	void handleDown();
 
 	void returnParentMenu();
 

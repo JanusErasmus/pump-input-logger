@@ -9,7 +9,6 @@ cMainMenu::cMainMenu(cPICAXEserialLCD* lcd) : cLCDmenu(lcd, "Main MENU")
 
 	mMenuCnt = 1;
 	mCursurPos = 2;
-	mOpenMenu = 0xFF;
 }
 
 void cMainMenu::open()
@@ -30,81 +29,43 @@ void cMainMenu::open()
 	mLCD->showCursor(2,0);
 }
 
-void cMainMenu::enter()
+void cMainMenu::handleEnter()
 {
-	if(mOpenMenu == 0xFF)
-	{
-		diag_printf("Main: enter %d\n", mCursurPos);
-		if((mCursurPos - 1) > mMenuCnt)
-			return;
-
-		mLCD->hideCursor();
-		mOpenMenu = mCursurPos - 2;
-		mSubMenus[mOpenMenu]->open();
-
+	diag_printf("Main: enter %d\n", mCursurPos);
+	if((mCursurPos - 1) > mMenuCnt)
 		return;
-	}
 
-	if(mOpenMenu > mMenuCnt)
-			return;
-
-	mSubMenus[mOpenMenu]->enter();
+	mLCD->hideCursor();
+	mSubMenu = mSubMenus[mCursurPos - 2];
+	mSubMenu->open();
 }
 
-void cMainMenu::cancel()
+void cMainMenu::handleCancel()
 {
-	if(mOpenMenu == 0xFF)
-	{
-		diag_printf("Main: cancel\n");
-		return;
-	}
-
-	if(mOpenMenu > mMenuCnt)
-		return;
-
-	mSubMenus[mOpenMenu]->cancel();
+	diag_printf("Main: cancel\n");
 }
 
-void cMainMenu::up()
+void cMainMenu::handleUp()
 {
-	if(mOpenMenu == 0xFF)
-	{
-		diag_printf("Main: up\n");
-		if(--mCursurPos == 1)
-			mCursurPos = 2;
+	diag_printf("Main: up\n");
+	if(--mCursurPos == 1)
+		mCursurPos = 2;
 
-		mLCD->setCursor(mCursurPos,0);
-		return;
-	}
-
-	if(mOpenMenu > mMenuCnt)
-		return;
-
-	mSubMenus[mOpenMenu]->up();
-
+	mLCD->setCursor(mCursurPos,0);
 }
 
-void cMainMenu::down()
+void cMainMenu::handleDown()
 {
-	if(mOpenMenu == 0xFF)
-	{
-		diag_printf("Main: down\n");
-		if(++mCursurPos > 4)
-			mCursurPos = 2;
+	diag_printf("Main: down\n");
+	if(++mCursurPos > 4)
+		mCursurPos = 2;
 
-		mLCD->setCursor(mCursurPos,0);
-		return;
-	}
-
-	if(mOpenMenu > mMenuCnt)
-		return;
-
-	mSubMenus[mOpenMenu]->down();
+	mLCD->setCursor(mCursurPos,0);
 }
 
 void cMainMenu::returnParentMenu()
 {
-	mOpenMenu = 0xFF;
+	mSubMenu = 0;
 	open();
 }
 

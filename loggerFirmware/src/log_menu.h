@@ -13,10 +13,10 @@ public:
 
 	void open();
 
-	void enter();
-	void cancel();
-	void up();
-	void down();
+	void handleEnter();
+	void handleCancel();
+	void handleUp();
+	void handleDown();
 
 	virtual ~cLogMenu();
 };
