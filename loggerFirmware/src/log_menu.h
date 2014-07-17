@@ -18,6 +18,8 @@ public:
 	void handleUp();
 	void handleDown();
 
+	void returnParentMenu();
+
 	virtual ~cLogMenu();
 };
 

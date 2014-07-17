@@ -1,6 +1,7 @@
 #include <cyg/kernel/diag.h>
 
 #include "log_menu.h"
+#include "log_ack_menu.h"
 #include "log.h"
 
 cLogMenu::cLogMenu(cPICAXEserialLCD* lcd, cLCDmenu* parent) : cLCDmenu(lcd, "ON/OFF LOGS"), mParent(parent)
@@ -17,6 +18,8 @@ void cLogMenu::open()
 void cLogMenu::handleEnter()
 {
 	diag_printf("LOG: enter\n");
+	mSubMenu = new cLogAckMenu(mLCD, this);
+	mSubMenu->open();
 }
 
 void cLogMenu::handleCancel()
@@ -74,6 +77,15 @@ void cLogMenu::showLog()
 	{
 		mLCD->println(2,"EMPTY");
 	}
+}
+
+void cLogMenu::returnParentMenu()
+{
+	if(mSubMenu)
+		delete mSubMenu;
+
+	mSubMenu = 0;
+	open();
 }
 
 cLogMenu::~cLogMenu()
