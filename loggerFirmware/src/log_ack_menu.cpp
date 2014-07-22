@@ -3,7 +3,7 @@
 #include "log_ack_menu.h"
 #include "log.h"
 
-cLogAckMenu::cLogAckMenu(cPICAXEserialLCD* lcd, cLCDmenu* parent) : cLCDmenu(lcd, "REMOVE LOG?"), mParent(parent)
+cLogAckMenu::cLogAckMenu(cPICAXEserialLCD* lcd, cLCDmenu* parent) : cLCDmenu(lcd, "REMOVE LOG?", parent)
 {
 
 }

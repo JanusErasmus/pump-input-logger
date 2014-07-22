@@ -4,8 +4,6 @@
 
 class cLogMenu : public cLCDmenu
 {
-	cLCDmenu* mParent;
-
 	void showLog();
 
 public:
@@ -17,8 +15,6 @@ public:
 	void handleCancel();
 	void handleUp();
 	void handleDown();
-
-	void returnParentMenu();
 
 	virtual ~cLogMenu();
 };

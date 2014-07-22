@@ -2,12 +2,14 @@
 
 #include "main_menu.h"
 #include "log_menu.h"
+#include "set_time_menu.h"
 
 cMainMenu::cMainMenu(cPICAXEserialLCD* lcd) : cLCDmenu(lcd, "Main MENU")
 {
 	mSubMenus[0] = new cLogMenu(lcd, this);
+	mSubMenus[1] = new cSetTimeMenu(lcd, this);
 
-	mMenuCnt = 1;
+	mMenuCnt = 2;
 	mCursurPos = 2;
 }
 
@@ -26,7 +28,7 @@ void cMainMenu::open()
 		mLCD->println(k + 2, "- %s", mSubMenus[k]->getHeading());
 	}
 
-	mLCD->showCursor(2,0);
+	mLCD->showCursor(mCursurPos,0);
 }
 
 void cMainMenu::handleEnter()

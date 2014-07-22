@@ -5,7 +5,7 @@
 class cMainMenu : public cLCDmenu
 {
 
-	cLCDmenu* mSubMenus[1];
+	cLCDmenu* mSubMenus[5];
 	cyg_uint8 mMenuCnt;
 	cyg_uint8 mCursurPos;
 

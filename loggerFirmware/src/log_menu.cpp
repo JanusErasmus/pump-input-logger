@@ -4,7 +4,7 @@
 #include "log_ack_menu.h"
 #include "log.h"
 
-cLogMenu::cLogMenu(cPICAXEserialLCD* lcd, cLCDmenu* parent) : cLCDmenu(lcd, "ON/OFF LOGS"), mParent(parent)
+cLogMenu::cLogMenu(cPICAXEserialLCD* lcd, cLCDmenu* parent) : cLCDmenu(lcd, "ON/OFF LOGS", parent)
 {
 }
 
@@ -77,15 +77,6 @@ void cLogMenu::showLog()
 	{
 		mLCD->println(2,"EMPTY");
 	}
-}
-
-void cLogMenu::returnParentMenu()
-{
-	if(mSubMenu)
-		delete mSubMenu;
-
-	mSubMenu = 0;
-	open();
 }
 
 cLogMenu::~cLogMenu()

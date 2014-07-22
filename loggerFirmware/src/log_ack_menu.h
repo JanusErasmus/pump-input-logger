@@ -4,7 +4,6 @@
 
 class cLogAckMenu : public cLCDmenu
 {
-	cLCDmenu* mParent;
 
 public:
 	cLogAckMenu(cPICAXEserialLCD* lcd, cLCDmenu* parent = 0);

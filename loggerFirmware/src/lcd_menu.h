@@ -12,6 +12,7 @@ protected:
 	cLCDmenu* mSubMenu;
 	const char* mHeading;
 	cPICAXEserialLCD* mLCD;
+	cLCDmenu* mParent;
 
 	virtual void handleUp(){};
 	virtual void handleDown(){};
@@ -19,7 +20,7 @@ protected:
 	virtual void handleCancel(){};
 
 public:
-	cLCDmenu(cPICAXEserialLCD* lcd, const char* heading);
+	cLCDmenu(cPICAXEserialLCD* lcd, const char* heading, cLCDmenu * parent = 0);
 
 	virtual void open() = 0;
 	cyg_bool isOpen(){ return mOpened; };
@@ -31,7 +32,7 @@ public:
 	void enter();
 	void cancel();
 
-	virtual void returnParentMenu(){};
+	virtual void returnParentMenu();
 
 	virtual ~cLCDmenu();
 };

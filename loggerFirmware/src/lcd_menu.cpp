@@ -1,10 +1,11 @@
 #include "lcd_menu.h"
 
-cLCDmenu::cLCDmenu(cPICAXEserialLCD* lcd, const char* heading) :
+cLCDmenu::cLCDmenu(cPICAXEserialLCD* lcd, const char* heading, cLCDmenu * parent) :
 	mOpened(false),
 	mSubMenu(0),
 	mHeading(heading),
-	mLCD(lcd)
+	mLCD(lcd),
+	mParent(parent)
 {
 }
 
@@ -50,6 +51,15 @@ void cLCDmenu::cancel()
 	}
 
 	handleCancel();
+}
+
+void cLCDmenu::returnParentMenu()
+{
+	if(mSubMenu)
+		delete mSubMenu;
+
+	mSubMenu = 0;
+	open();
 }
 
 cLCDmenu::~cLCDmenu()
