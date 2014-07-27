@@ -12,7 +12,7 @@
 #include "led.h"
 #include "main_menu.h"
 
-class cSysMon : public cDebug, public cActionQueue
+class cSysMon : public cDebug, public cActionQueue, public cMainCancelSignal
 {
 public:
 	enum e_sysmon_action
@@ -41,12 +41,15 @@ private:
 	cyg_mutex_t mMonitorMutex;
 
 	cLCDmenu * mMenu;
+	cyg_bool mMenuFlag;
 
 	wdKicker* mWatchDog;
 
 	cyg_bool monitor();
 	cyg_bool handleAction(cyg_addrword_t action);
 	cyg_bool handleEvent(s_event* evt);
+
+	void mainCanceled();
 
 	cLED::eLEDstatus registerModem();
 	cLED::eLEDstatus checkSIM();
@@ -56,6 +59,8 @@ private:
 
 	void handleSMSlist();
 	void handleSMScommand(cMdmReadSMS::sSMS * sms);
+
+	void showStatus();
 
 public:
 	static void init();

@@ -63,7 +63,7 @@ cPICAXEserialLCD::cPICAXEserialLCD(char* serDev)
 			&tty_info,
 			&len);
 
-	banner();
+	//banner();
 }
 
 void cPICAXEserialLCD::banner()

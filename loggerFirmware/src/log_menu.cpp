@@ -13,6 +13,13 @@ void cLogMenu::open()
 	mLCD->clear();
 	mLCD->println(1,mHeading);
 	showLog();
+
+
+	if(mSubMenu)
+	{
+		delete mSubMenu;
+		mSubMenu = 0;
+	}
 }
 
 void cLogMenu::handleEnter()
@@ -66,7 +73,7 @@ void cLogMenu::showLog()
 
 		if(e.getType() == cEvent::EVENT_INPUT)
 		{
-			mLCD->println(3, "Port %d %s", e.getPort(), e.getState()?"ON  ":"OFF");
+			mLCD->println(3, "PUMP %s", e.getState()?"ON  ":"OFF");
 		}
 
 		//printf("Value: %.1f\t", mData.mTemp);

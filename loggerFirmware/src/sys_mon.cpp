@@ -8,6 +8,8 @@
 #include "crc.h"
 #include "input_port.h"
 #include "picaxe_lcd.h"
+#include "output_port.h"
+#include "log.h"
 
 cSysMon* cSysMon::_instance = 0;
 
@@ -31,8 +33,8 @@ cSysMon::cSysMon()
 	replied = false;
 
 	cPICAXEserialLCD::init(SERIAL_CONFIG_DEVICE);
-	mMenu = new cMainMenu(cPICAXEserialLCD::get());
-	mMenu->open();
+	mMenu = new cMainMenu(cPICAXEserialLCD::get(), this);
+	mMenuFlag = false;
 
 	mWatchDog = new wdKicker(300);
 
@@ -57,6 +59,7 @@ void cSysMon::sys_thread_func(cyg_addrword_t arg)
 	cSysMon *t = (cSysMon *)arg;
 	cyg_bool monStat = false;
 
+	t->showStatus();
 	for(;;)
 	{
 
@@ -69,7 +72,7 @@ void cSysMon::sys_thread_func(cyg_addrword_t arg)
 
 cyg_bool cSysMon::monitor()
 {
-	s_action  * act = (s_action *)cyg_mbox_timed_get(mActionQHandle, cyg_current_time() + 15000);
+	s_action  * act = (s_action *)cyg_mbox_timed_get(mActionQHandle, cyg_current_time() + 30000);
 	if (act)
 	{
 		cyg_bool stat = false;
@@ -77,6 +80,9 @@ cyg_bool cSysMon::monitor()
 		{
 		case event:
 		{
+			//switch back light on
+			cOutput::get()->setPortState(0,0);
+
 			s_event * evt = (s_event*)act->action;
 			if(evt)
 			{
@@ -99,7 +105,28 @@ cyg_bool cSysMon::monitor()
 		return stat;
 	}
 
+	diag_printf("SYSMON: IDLE\n");
+	cOutput::get()->setPortState(0,1);
+	mainCanceled();
+
 	return false;
+}
+void cSysMon::mainCanceled()
+{
+	mMenuFlag = false;
+	showStatus();
+}
+
+void cSysMon::showStatus()
+{
+	time_t now = cRTC::get()->timeNow();
+	struct tm*  info = localtime(&now);
+
+	cPICAXEserialLCD::get()->hideCursor();
+	cPICAXEserialLCD::get()->clear();
+	cPICAXEserialLCD::get()->println(1, "PUMP LOGGER    %02d:%02d", info->tm_hour, info->tm_min);
+
+	cPICAXEserialLCD::get()->println(3,"PUMP %s",cInput::get()->getPortState(5)?"RUNNING":"STOPPED");
 }
 
 cyg_bool cSysMon::handleAction(cyg_addrword_t action)
@@ -114,25 +141,48 @@ cyg_bool cSysMon::handleEvent(s_event* evt)
 	//digital input
 	if(evt->portNumber != 0xFF)
 	{
-		//diag_printf("SYSMON: Input %d : %s\n", evt->portNumber, evt->state?"close":"open");
-
+		//only  handle button releases
 		if(!evt->state)
 		{
 			switch(evt->portNumber)
 			{
 			case 0:
-				mMenu->up();
+				if(mMenuFlag)
+					mMenu->up();
 				break;
 			case 1:
-				mMenu->down();
+				if(mMenuFlag)
+					mMenu->down();
 				break;
 			case 2:
-				mMenu->enter();
+				if(mMenuFlag)
+				{
+					mMenu->enter();
+				}
+				else
+				{
+					mMenuFlag = true;
+					mMenu->open();
+				}
 				break;
 			case 3:
-				mMenu->cancel();
+				if(mMenuFlag)
+					mMenu->cancel();
 				break;
 			}
+		}
+
+		//always handle pump input
+		if(evt->portNumber == 4 || evt->portNumber == 5)
+		{
+			diag_printf("SYSMON: Input %d : %s\n", evt->portNumber, evt->state?"close":"open");
+
+			cPICAXEserialLCD::get()->println(3,"PUMP %s",evt->state?"RUNNING":"STOPPED");
+
+			cEvent e(evt->portNumber, evt->state, cRTC::get()->timeNow());
+			e.showEvent();
+
+			cLog::get()->logEvent(&e);
 		}
 	}
 	return true;

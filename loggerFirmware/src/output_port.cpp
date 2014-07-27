@@ -56,7 +56,7 @@ void cOutput::setupPorts(cyg_uint32* ports, cyg_uint8 count)
 		port = gpio_num >> 4;
 
 		// Generate the pin setup specification and configure it.
-		pinspec = STM32_GPIO_PINSPEC (port, pin, OUT_2MHZ, GPOPP);
+		pinspec = STM32_GPIO_PINSPEC (port, pin, OUT_2MHZ, GPOOD);
 		CYGHWR_HAL_STM32_GPIO_SET (pinspec);
 	}
 }

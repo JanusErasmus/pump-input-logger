@@ -6,6 +6,12 @@
 class cSetTimeMenu : public cLCDmenu
 {
 	cyg_uint8 mCursurPos;
+	cyg_uint8 mHours;
+	cyg_uint8 mMinutes;
+
+	void setHours(cyg_uint8 hours);
+	void setMinutes(cyg_uint8 min);
+
 
 public:
 	cSetTimeMenu(cPICAXEserialLCD* lcd, cLCDmenu* parent = 0);

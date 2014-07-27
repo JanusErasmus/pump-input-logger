@@ -4,8 +4,10 @@
 #include "log_menu.h"
 #include "set_time_menu.h"
 
-cMainMenu::cMainMenu(cPICAXEserialLCD* lcd) : cLCDmenu(lcd, "Main MENU")
+cMainMenu::cMainMenu(cPICAXEserialLCD* lcd, cMainCancelSignal * cancel) : cLCDmenu(lcd, "Main MENU")
 {
+	mCancelMain = cancel;
+
 	mSubMenus[0] = new cLogMenu(lcd, this);
 	mSubMenus[1] = new cSetTimeMenu(lcd, this);
 
@@ -17,6 +19,9 @@ void cMainMenu::open()
 {
 	mLCD->clear();
 	mLCD->println(1,mHeading);
+
+	mCursurPos = 2;
+	mSubMenu = 0;
 
 	//list all the sub menus
 	for(cyg_uint8 k = 0; k < mMenuCnt; k++)
@@ -45,6 +50,7 @@ void cMainMenu::handleEnter()
 void cMainMenu::handleCancel()
 {
 	diag_printf("Main: cancel\n");
+	mCancelMain->mainCanceled();
 }
 
 void cMainMenu::handleUp()
