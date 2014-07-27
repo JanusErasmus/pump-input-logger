@@ -20,7 +20,6 @@ class cPICAXEserialLCD : public cDebug
 
     void print(cyg_uint8* buff, cyg_uint8 len);
     void printCmd(cyg_uint8 cmd);
-    void print(const char *string);
 
     void banner();
 
@@ -35,6 +34,7 @@ public:
 	void showCursor(cyg_uint8 row = 0xFF, cyg_uint8 col = 0xFF);
 	void hideCursor();
 
+	void print(const char *string);
 	void println(cyg_uint8 line, const char* f,...);
 
 	static void debugCMD(cTerm & term, int argc,char * argv[]);

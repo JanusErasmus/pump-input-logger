@@ -37,6 +37,5 @@ void cLogAckMenu::handleCancel()
 
 cLogAckMenu::~cLogAckMenu()
 {
-
 }
 

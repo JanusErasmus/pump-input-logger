@@ -6,7 +6,6 @@
 
 class cLCDmenu
 {
-	cyg_bool mOpened;
 
 protected:
 	cLCDmenu* mSubMenu;
@@ -23,7 +22,6 @@ public:
 	cLCDmenu(cPICAXEserialLCD* lcd, const char* heading, cLCDmenu * parent = 0);
 
 	virtual void open() = 0;
-	cyg_bool isOpen(){ return mOpened; };
 
 	const char* getHeading(){ return mHeading; };
 

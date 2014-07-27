@@ -1,7 +1,6 @@
 #include "lcd_menu.h"
 
 cLCDmenu::cLCDmenu(cPICAXEserialLCD* lcd, const char* heading, cLCDmenu * parent) :
-	mOpened(false),
 	mSubMenu(0),
 	mHeading(heading),
 	mLCD(lcd),
@@ -64,5 +63,7 @@ void cLCDmenu::returnParentMenu()
 
 cLCDmenu::~cLCDmenu()
 {
+	if(mSubMenu)
+		delete mSubMenu;
 }
 

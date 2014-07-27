@@ -25,12 +25,6 @@ void cSetTimeMenu::open()
 	mLCD->println(4,"- Set MINUTES");
 
 	mLCD->showCursor(mCursurPos,0);
-
-	if(mSubMenu)
-	{
-		delete mSubMenu;
-		mSubMenu = 0;
-	}
 }
 
 void cSetTimeMenu::handleEnter()
@@ -99,9 +93,9 @@ void cSetTimeMenu::returnParentMenu()
 		}
 
 		delete mSubMenu;
+		mSubMenu = 0;
 	}
 
-	mSubMenu = 0;
 	open();
 }
 

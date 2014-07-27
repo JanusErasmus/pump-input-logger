@@ -13,13 +13,6 @@ void cLogMenu::open()
 	mLCD->clear();
 	mLCD->println(1,mHeading);
 	showLog();
-
-
-	if(mSubMenu)
-	{
-		delete mSubMenu;
-		mSubMenu = 0;
-	}
 }
 
 void cLogMenu::handleEnter()

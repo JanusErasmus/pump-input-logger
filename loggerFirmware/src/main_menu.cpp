@@ -4,13 +4,8 @@
 #include "log_menu.h"
 #include "set_time_menu.h"
 
-cMainMenu::cMainMenu(cPICAXEserialLCD* lcd, cMainCancelSignal * cancel) : cLCDmenu(lcd, "Main MENU")
+cMainMenu::cMainMenu(cPICAXEserialLCD* lcd, cLCDmenu * parent) : cLCDmenu(lcd, "Main MENU", parent)
 {
-	mCancelMain = cancel;
-
-	mSubMenus[0] = new cLogMenu(lcd, this);
-	mSubMenus[1] = new cSetTimeMenu(lcd, this);
-
 	mMenuCnt = 2;
 	mCursurPos = 2;
 }
@@ -24,38 +19,45 @@ void cMainMenu::open()
 	mSubMenu = 0;
 
 	//list all the sub menus
-	for(cyg_uint8 k = 0; k < mMenuCnt; k++)
-	{
-		//there is space for 3 items on startup
-		if(k > 3)
-			break;
 
-		mLCD->println(k + 2, "- %s", mSubMenus[k]->getHeading());
-	}
+	mLCD->println(2, "- LOGS");
+	mLCD->println(3, "- SET TIME");
 
 	mLCD->showCursor(mCursurPos,0);
 }
 
 void cMainMenu::handleEnter()
 {
-	diag_printf("Main: enter %d\n", mCursurPos);
 	if((mCursurPos - 1) > mMenuCnt)
 		return;
 
 	mLCD->hideCursor();
-	mSubMenu = mSubMenus[mCursurPos - 2];
-	mSubMenu->open();
+
+	switch(mCursurPos - 2)
+	{
+	case 0:
+		mSubMenu = new cLogMenu(mLCD, this);
+		break;
+	case 1:
+		mSubMenu = new cSetTimeMenu(mLCD, this);
+		break;
+
+	default:
+		break;
+	}
+
+	if(mSubMenu)
+		mSubMenu->open();
 }
 
 void cMainMenu::handleCancel()
 {
-	diag_printf("Main: cancel\n");
-	mCancelMain->mainCanceled();
+	if(mParent)
+	mParent->returnParentMenu();
 }
 
 void cMainMenu::handleUp()
 {
-	diag_printf("Main: up\n");
 	if(--mCursurPos == 1)
 		mCursurPos = 2;
 
@@ -64,17 +66,10 @@ void cMainMenu::handleUp()
 
 void cMainMenu::handleDown()
 {
-	diag_printf("Main: down\n");
 	if(++mCursurPos > 4)
 		mCursurPos = 2;
 
 	mLCD->setCursor(mCursurPos,0);
-}
-
-void cMainMenu::returnParentMenu()
-{
-	mSubMenu = 0;
-	open();
 }
 
 cMainMenu::~cMainMenu()
