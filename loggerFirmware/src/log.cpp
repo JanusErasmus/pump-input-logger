@@ -362,7 +362,7 @@ void cLog::showLogs()
 
 }
 
-cyg_bool cLog::getNextOnDuration(cyg_uint8 port, cyg_uint32 &duration, time_t &on, time_t &off)
+cyg_bool cLog::getNextOnDuration(cyg_uint8 port, time_t &duration, time_t &on, time_t &off)
 {
 	cyg_bool stat = false;
 
@@ -373,7 +373,7 @@ cyg_bool cLog::getNextOnDuration(cyg_uint8 port, cyg_uint32 &duration, time_t &o
 		if(!readNext())
 			reset();
 
-		if((e.getPort() == port) && (e.getState() == 1))
+		if((e.getPort() == port) && (e.getState() == 1) && (e.getType() == cEvent::EVENT_INPUT))
 		{
 			stat = true;
 			break;
@@ -422,23 +422,7 @@ void cLog::logDebug(cTerm & term, int argc,char * argv[])
 
 	if(!strcmp(argv[0], "show"))
 	{
-		//__instance->showLogs();
-
-		time_t on,off;
-		char timeString[64];
-		cyg_uint32 duration;
-
-		if(__instance->getNextOnDuration(0, duration, on, off))
-		{
-			strcpy(timeString,  ctime(&on));
-
-			diag_printf("Duration: %d\n - ON : %s - OFF: %s", duration,timeString, ctime(&off));
-		}
-		else
-		{
-			diag_printf("No logs");
-		}
-
+		__instance->showLogs();
 	}
 	else if(!strcmp(argv[0], "log"))
 	{

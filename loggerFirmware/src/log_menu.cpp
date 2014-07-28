@@ -1,17 +1,18 @@
 #include <cyg/kernel/diag.h>
+#include <stdio.h>
 
 #include "log_menu.h"
 #include "log_ack_menu.h"
 #include "log.h"
 
-cLogMenu::cLogMenu(cPICAXEserialLCD* lcd, cLCDmenu* parent) : cLCDmenu(lcd, "ON/OFF LOGS", parent)
+cLogMenu::cLogMenu(cPICAXEserialLCD* lcd, cLCDmenu* parent) : cLCDmenu(lcd, "", parent)
 {
 }
 
 void cLogMenu::open()
 {
 	mLCD->clear();
-	mLCD->println(1,mHeading);
+	cLog::get()->reset();
 	showLog();
 }
 
@@ -33,50 +34,58 @@ void cLogMenu::handleCancel()
 void cLogMenu::handleUp()
 {
 	diag_printf("LOG: up\n");
-	cLog::get()->readPrev();
-	showLog();
 }
 
 void cLogMenu::handleDown()
 {
 	diag_printf("LOG: down\n");
-	cLog::get()->readNext();
 	showLog();
 }
 
 void cLogMenu::showLog()
 {
-	cyg_bool stat = true;
-	cEvent e;
+	time_t on,off,duration;
 
-	if(!cLog::get()->readEvent(&e))
+	mLCD->clear();
+
+
+	if(cLog::get()->getNextOnDuration(5, duration, on, off))
 	{
-		cLog::get()->reset();
-		stat = cLog::get()->readEvent(&e);
-	}
+		struct tm*  info;
 
-	mLCD->println(2,"PUMP CHANGED:");
+		info = localtime(&on);
+		mLCD->println(1,"LOG: %02d-%02d-%d", info->tm_mday, info->tm_mon, info->tm_year + 1900);
 
-	if(stat)
-	{
-		if(e.getType() == cEvent::EVENT_TEMP)
+		mLCD->println(2,"ON : %02d:%02d:%02d", info->tm_hour, info->tm_min, info->tm_sec);
+
+		info = localtime(&off);
+		mLCD->println(3,"OFF: %02d:%02d:%02d", info->tm_hour, info->tm_min, info->tm_sec);
+
+		info = localtime(&duration);
+		char durationString[16];
+		durationString[0] = ' ';
+		durationString[1] = ' ';
+		durationString[2] = 0x7E;
+		if(info->tm_hour)
 		{
-			//printf("Value: %.1f\t", mData.mTemp);
+			sprintf(&durationString[3],"  %dh%dm%ds", info->tm_hour, info->tm_min, info->tm_sec);
 		}
-
-		if(e.getType() == cEvent::EVENT_INPUT)
+		else if(info->tm_min)
 		{
-			mLCD->println(3, "PUMP %s", e.getState()?"ON  ":"OFF");
+			sprintf(&durationString[3],"  %dm%ds", info->tm_min, info->tm_sec);
 		}
-
-		//printf("Value: %.1f\t", mData.mTemp);
-		cyg_uint32 evtTime = e.getTimeStamp();
-		mLCD->println(4, ctime((time_t*)&evtTime));
+		else
+		{
+			sprintf(&durationString[3],"  %ds", info->tm_sec);
+		}
+		mLCD->println(4,durationString);
 	}
 	else
 	{
-		mLCD->println(2,"EMPTY");
+		mLCD->println(3,"END of logs");
 	}
+
+
 }
 
 cLogMenu::~cLogMenu()
