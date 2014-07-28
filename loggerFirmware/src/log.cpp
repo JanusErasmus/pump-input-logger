@@ -362,6 +362,59 @@ void cLog::showLogs()
 
 }
 
+cyg_bool cLog::getNextOnDuration(cyg_uint8 port, cyg_uint32 &duration, time_t &on, time_t &off)
+{
+	cyg_bool stat = false;
+
+	cEvent e;
+
+	while(readEvent(&e))
+	{
+		if(!readNext())
+			reset();
+
+		if((e.getPort() == port) && (e.getState() == 1))
+		{
+			stat = true;
+			break;
+		}
+
+	};
+
+	if(!stat)
+		return false;
+
+
+	on = e.getTimeStamp();
+	//diag_printf(" - On: %s", ctime(&on));
+
+	while(readEvent(&e))
+	{
+		if(!readNext())
+			reset();
+
+		if((e.getPort() == port) && (e.getState() == 0))
+		{
+			stat = true;
+			break;
+		}
+
+	};
+
+	if(!stat)
+		return false;
+
+	off = e.getTimeStamp();
+	//diag_printf(" - Off: %s", ctime(&off));
+
+	if(on > off)
+		return false;
+
+	duration = off - on;
+
+	return true;
+}
+
 void cLog::logDebug(cTerm & term, int argc,char * argv[])
 {
 	if(!__instance)
@@ -369,24 +422,41 @@ void cLog::logDebug(cTerm & term, int argc,char * argv[])
 
 	if(!strcmp(argv[0], "show"))
 	{
-		__instance->showLogs();
+		//__instance->showLogs();
+
+		time_t on,off;
+		char timeString[64];
+		cyg_uint32 duration;
+
+		if(__instance->getNextOnDuration(0, duration, on, off))
+		{
+			strcpy(timeString,  ctime(&on));
+
+			diag_printf("Duration: %d\n - ON : %s - OFF: %s", duration,timeString, ctime(&off));
+		}
+		else
+		{
+			diag_printf("No logs");
+		}
+
 	}
 	else if(!strcmp(argv[0], "log"))
 	{
+		time_t logTime = time(0);
+		static cyg_uint8 state = 0;
+
 		if(argc > 1)
 		{
 			cyg_uint8 port = 0;
-			cyg_uint8 state = 0;
 			cyg_uint8 cnt = strtoul(argv[1],NULL,10);
-
 
 			diag_printf("Logging %d events:\n", cnt);
 
 			for(cyg_uint8 k = 0; k < cnt; k++)
 			{
-				cEvent e(port,(cyg_uint8)state,0x100 * port);
+				cEvent e(port, state, logTime);
 				port++;
-				state = ~(state);
+				state = (~(state) & 0x01);
 
 				__instance->logEvent(&e);
 				e.showEvent();
@@ -394,7 +464,9 @@ void cLog::logDebug(cTerm & term, int argc,char * argv[])
 		}
 		else
 		{
-			cEvent e((cyg_uint8)0,(cyg_uint8)1,0x00);
+			cEvent e((cyg_uint8)0, state, logTime);
+			state =(~(state) & 0x01);
+
 			__instance->logEvent(&e);
 
 			diag_printf("Logged Event:\n");
@@ -402,6 +474,11 @@ void cLog::logDebug(cTerm & term, int argc,char * argv[])
 		}
 
 	}
+	else if(!strcmp(argv[0], "ack"))
+		{
+		__instance->acknowledge();
+		__instance->readNext();
+		}
 }
 
 cLog::~cLog()

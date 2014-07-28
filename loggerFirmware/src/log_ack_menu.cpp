@@ -19,8 +19,7 @@ void cLogAckMenu::open()
 void cLogAckMenu::handleEnter()
 {
 	diag_printf("LOGack: enter\n");
-	cLog::get()->acknowledge();
-	cLog::get()->reset();
+	//Cannot acknowledge in middle of log list
 
 	if(mParent)
 		mParent->returnParentMenu();

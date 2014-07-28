@@ -58,6 +58,7 @@ TermCMD::cmd_table_t TermCMD::mCmdTable [] =
     {"Logs"	,0,0,0},
     {"show", "",			"Show all logs", cLog::logDebug},
     {"log", "",				"Log a event", cLog::logDebug},
+    {"ack", "",				"Acknowledge a event", cLog::logDebug},
 
     {"RTC TIME"	,0,0,0},
     {"setRTC", "<yyyy mm dd HH MM SS>","Set MCP RTC", cRTC::set},

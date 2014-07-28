@@ -33,6 +33,8 @@ public:
    cyg_bool readNext();
    void reset();
 
+   cyg_bool getNextOnDuration(cyg_uint8 port, cyg_uint32 &duration, time_t &on, time_t &off);
+
    void logEvent(cEvent *e);
    cyg_bool readEvent(cEvent *e);
 
