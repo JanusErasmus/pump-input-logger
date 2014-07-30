@@ -4,10 +4,11 @@
 
 class cLogMenu : public cLCDmenu
 {
-	void showLog();
+	cyg_uint8 mMenuCnt;
+	cyg_uint8 mCursurPos;
 
 public:
-	cLogMenu(cPICAXEserialLCD* lcd, cLCDmenu* parent = 0);
+	cLogMenu(cPICAXEserialLCD* lcd, cLCDmenu * parent);
 
 	void open();
 

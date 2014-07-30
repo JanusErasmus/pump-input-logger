@@ -362,24 +362,46 @@ void cLog::showLogs()
 
 }
 
-cyg_bool cLog::getNextOnDuration(cyg_uint8 port, time_t &duration, time_t &on, time_t &off)
+cyg_bool cLog::getNextOnDuration(cyg_uint8 &day, cyg_uint8 port, time_t &duration, time_t &on, time_t &off)
 {
 	cyg_bool stat = false;
 
 	cEvent e;
+	if(!readEvent(&e))
+		return false;
 
-	while(readEvent(&e))
+	if(day != 0xFF)
 	{
-		if(!readNext())
-			reset();
+		struct tm*  info;
+		time_t evtTime = e.getTimeStamp();
+		info = localtime(&evtTime);
 
+		if(day == 0)
+		{
+			day = info->tm_mday;
+		}
+		else if(day != info->tm_mday)
+		{
+			return false;
+		}
+	}
+
+	do
+	{
 		if((e.getPort() == port) && (e.getState() == 1) && (e.getType() == cEvent::EVENT_INPUT))
 		{
 			stat = true;
 			break;
 		}
 
-	};
+		if(!readNext())
+		{
+			stat = false;
+			reset();
+			break;
+		}
+
+	}while(readEvent(&e));
 
 	if(!stat)
 		return false;
@@ -390,14 +412,14 @@ cyg_bool cLog::getNextOnDuration(cyg_uint8 port, time_t &duration, time_t &on, t
 
 	while(readEvent(&e))
 	{
-		if(!readNext())
-			reset();
-
 		if((e.getPort() == port) && (e.getState() == 0))
 		{
 			stat = true;
 			break;
 		}
+
+		if(!readNext())
+			reset();
 
 	};
 
@@ -415,6 +437,29 @@ cyg_bool cLog::getNextOnDuration(cyg_uint8 port, time_t &duration, time_t &on, t
 	return true;
 }
 
+cyg_bool cLog::getNextOnDuration(cyg_uint8 port, time_t &duration, time_t &on, time_t &off)
+{
+	cyg_uint8 day = 0xFF;
+	return getNextOnDuration(day, port, duration, on, off);
+}
+
+cyg_bool cLog::getNextDayOnDuration(cyg_uint8 port, time_t &duration)
+{
+	static cyg_uint8 currentDay = 0;
+	time_t on,off,OnDuration;
+
+	duration = 0;
+	while(getNextOnDuration(currentDay, 5, OnDuration, on, off))
+	{
+		duration += OnDuration;
+	}
+
+	diag_printf("day %d, %ds\n", currentDay, duration);
+	currentDay++;
+
+	return true;
+}
+
 void cLog::logDebug(cTerm & term, int argc,char * argv[])
 {
 	if(!__instance)
@@ -423,6 +468,9 @@ void cLog::logDebug(cTerm & term, int argc,char * argv[])
 	if(!strcmp(argv[0], "show"))
 	{
 		__instance->showLogs();
+
+		time_t onTime;
+		__instance->getNextDayOnDuration(5, onTime);
 	}
 	else if(!strcmp(argv[0], "log"))
 	{
