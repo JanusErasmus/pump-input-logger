@@ -1,4 +1,4 @@
-#include "lcd_menu.h"
+#include "menu_lcd.h"
 
 cLCDmenu::cLCDmenu(cPICAXEserialLCD* lcd, const char* heading, cLCDmenu * parent) :
 	mSubMenu(0),

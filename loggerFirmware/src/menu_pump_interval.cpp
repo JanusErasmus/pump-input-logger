@@ -1,8 +1,8 @@
 #include <cyg/kernel/diag.h>
 #include <stdio.h>
 
-#include "pump_interval_menu.h"
-#include "log_ack_menu.h"
+#include "menu_pump_interval.h"
+#include "menu_log_ack.h"
 #include "log.h"
 
 cPumpIntervalMenu::cPumpIntervalMenu(cPICAXEserialLCD* lcd, cLCDmenu* parent) : cLCDmenu(lcd, "", parent)

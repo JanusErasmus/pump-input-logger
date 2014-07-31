@@ -1,15 +1,16 @@
 #include <cyg/kernel/diag.h>
 
-#include "log_menu.h"
-#include "pump_interval_menu.h"
+#include "menu_main.h"
+#include "menu_log.h"
+#include "menu_set_time.h"
 
-cLogMenu::cLogMenu(cPICAXEserialLCD* lcd, cLCDmenu * parent) : cLCDmenu(lcd, "LOGS", parent)
+cMainMenu::cMainMenu(cPICAXEserialLCD* lcd, cLCDmenu * parent) : cLCDmenu(lcd, "Main MENU", parent)
 {
-	mMenuCnt = 1;
+	mMenuCnt = 2;
 	mCursurPos = 2;
 }
 
-void cLogMenu::open()
+void cMainMenu::open()
 {
 	mLCD->clear();
 	mLCD->println(1,mHeading);
@@ -19,14 +20,13 @@ void cLogMenu::open()
 
 	//list all the sub menus
 
-	mLCD->println(2, "- Intervals");
-	mLCD->println(3, "- Day summaries");
-	mLCD->println(4, "- Remove");
+	mLCD->println(2, "- LOGS");
+	mLCD->println(3, "- SET TIME");
 
 	mLCD->showCursor(mCursurPos,0);
 }
 
-void cLogMenu::handleEnter()
+void cMainMenu::handleEnter()
 {
 	if((mCursurPos - 1) > mMenuCnt)
 		return;
@@ -36,7 +36,10 @@ void cLogMenu::handleEnter()
 	switch(mCursurPos - 2)
 	{
 	case 0:
-		mSubMenu = new cPumpIntervalMenu(mLCD, this);
+		mSubMenu = new cLogMenu(mLCD, this);
+		break;
+	case 1:
+		mSubMenu = new cSetTimeMenu(mLCD, this);
 		break;
 
 	default:
@@ -47,13 +50,13 @@ void cLogMenu::handleEnter()
 		mSubMenu->open();
 }
 
-void cLogMenu::handleCancel()
+void cMainMenu::handleCancel()
 {
 	if(mParent)
 	mParent->returnParentMenu();
 }
 
-void cLogMenu::handleUp()
+void cMainMenu::handleUp()
 {
 	if(--mCursurPos == 1)
 		mCursurPos = 2;
@@ -61,7 +64,7 @@ void cLogMenu::handleUp()
 	mLCD->setCursor(mCursurPos,0);
 }
 
-void cLogMenu::handleDown()
+void cMainMenu::handleDown()
 {
 	if(++mCursurPos > 4)
 		mCursurPos = 2;
@@ -69,7 +72,7 @@ void cLogMenu::handleDown()
 	mLCD->setCursor(mCursurPos,0);
 }
 
-cLogMenu::~cLogMenu()
+cMainMenu::~cMainMenu()
 {
 }
 

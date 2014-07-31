@@ -1,6 +1,6 @@
 #ifndef LOG_ACK_MENU_H_
 #define LOG_ACK_MENU_H_
-#include "lcd_menu.h"
+#include "menu_lcd.h"
 
 class cLogAckMenu : public cLCDmenu
 {

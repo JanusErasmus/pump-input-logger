@@ -1,7 +1,7 @@
 #ifndef SET_TIME_MENU_H_
 #define SET_TIME_MENU_H_
 
-#include "lcd_menu.h"
+#include "menu_lcd.h"
 
 class cSetTimeMenu : public cLCDmenu
 {

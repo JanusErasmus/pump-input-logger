@@ -1,7 +1,7 @@
 #include <cyg/kernel/diag.h>
 
-#include "set_time_menu.h"
-#include "get_number_menu.h"
+#include "menu_set_time.h"
+#include "menu_get_number.h"
 #include "MCP_rtc.h"
 
 cSetTimeMenu::cSetTimeMenu(cPICAXEserialLCD* lcd, cLCDmenu* parent) : cLCDmenu(lcd, "SET TIME", parent)

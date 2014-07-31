@@ -1,6 +1,6 @@
 #include <cyg/kernel/diag.h>
 
-#include "log_ack_menu.h"
+#include "menu_log_ack.h"
 #include "log.h"
 
 cLogAckMenu::cLogAckMenu(cPICAXEserialLCD* lcd, cLCDmenu* parent) : cLCDmenu(lcd, "REMOVE LOG?", parent)

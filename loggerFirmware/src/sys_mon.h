@@ -10,7 +10,7 @@
 #include "debug.h"
 #include "watchdog.h"
 #include "led.h"
-#include "standby_menu.h"
+#include "menu_standby.h"
 
 class cSysMon : public cDebug, public cActionQueue
 {

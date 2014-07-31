@@ -1,7 +1,7 @@
 #ifndef STANDBY_MENU_H_
 #define STANDBY_MENU_H_
 
-#include "lcd_menu.h"
+#include "menu_lcd.h"
 
 class cStandbyMenu : public cLCDmenu
 {

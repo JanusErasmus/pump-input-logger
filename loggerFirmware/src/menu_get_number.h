@@ -1,7 +1,7 @@
 #ifndef GET_NUMBER_MENU_H_
 #define GET_NUMBER_MENU_H_
 
-#include "lcd_menu.h"
+#include "menu_lcd.h"
 
 class cGetNumberMenu: public cLCDmenu
 {

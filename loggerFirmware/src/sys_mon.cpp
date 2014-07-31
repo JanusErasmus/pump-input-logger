@@ -163,6 +163,8 @@ cyg_bool cSysMon::handleEvent(s_event* evt)
 			e.showEvent();
 
 			cLog::get()->logEvent(&e);
+
+			cOutput::get()->setPortState(1,evt->state);
 		}
 	}
 	return true;

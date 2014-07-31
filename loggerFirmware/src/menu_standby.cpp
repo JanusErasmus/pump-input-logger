@@ -1,9 +1,9 @@
 #include <cyg/kernel/diag.h>
 #include <stdio.h>
 
-#include "standby_menu.h"
+#include "menu_standby.h"
 #include "MCP_rtc.h"
-#include "main_menu.h"
+#include "menu_main.h"
 
 cStandbyMenu::cStandbyMenu(cPICAXEserialLCD* lcd, cLCDmenu* parent) : cLCDmenu(lcd, "PUMP LOGGER", parent)
 {

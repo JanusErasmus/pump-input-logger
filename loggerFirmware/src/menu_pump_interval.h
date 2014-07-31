@@ -1,6 +1,6 @@
 #ifndef INTERVAL_MENU_H_
 #define INTERVAL_MENU_H_
-#include "lcd_menu.h"
+#include "menu_lcd.h"
 
 class cPumpIntervalMenu : public cLCDmenu
 {

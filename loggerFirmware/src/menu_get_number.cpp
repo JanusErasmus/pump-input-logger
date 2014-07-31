@@ -1,4 +1,4 @@
-#include "get_number_menu.h"
+#include "menu_get_number.h"
 
 cGetNumberMenu::cGetNumberMenu(const char* numberName, cyg_uint8 number, cPICAXEserialLCD* lcd, cLCDmenu* parent) :
 	cLCDmenu(lcd, numberName, parent),

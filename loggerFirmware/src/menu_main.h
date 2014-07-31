@@ -1,6 +1,6 @@
 #ifndef Main_MENU_H_
 #define Main_MENU_H_
-#include "lcd_menu.h"
+#include "menu_lcd.h"
 
 class cMainMenu : public cLCDmenu
 {
