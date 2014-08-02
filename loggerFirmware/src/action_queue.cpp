@@ -14,7 +14,7 @@ cActionQueue::cActionQueue()
 
 void cActionQueue::QAction(s_action* evt)
 {
-   cyg_mbox_put(mActionQHandle, evt);
+   cyg_mbox_tryput(mActionQHandle, evt);
 }
 
 

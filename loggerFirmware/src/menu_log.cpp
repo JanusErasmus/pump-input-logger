@@ -2,10 +2,12 @@
 
 #include "menu_log.h"
 #include "menu_pump_interval.h"
+#include "menu_day_summary.h"
+#include "menu_log_ack.h"
 
 cLogMenu::cLogMenu(cPICAXEserialLCD* lcd, cLCDmenu * parent) : cLCDmenu(lcd, "LOGS", parent)
 {
-	mMenuCnt = 1;
+	mMenuCnt = 3;
 	mCursurPos = 2;
 }
 
@@ -38,6 +40,13 @@ void cLogMenu::handleEnter()
 	case 0:
 		mSubMenu = new cPumpIntervalMenu(mLCD, this);
 		break;
+	case 1:
+		mSubMenu = new cPumpDaySummaryMenu(mLCD, this);
+		break;
+
+	case 2:
+		mSubMenu = new cLogAckMenu(mLCD, this);
+		break;
 
 	default:
 		break;
@@ -56,7 +65,7 @@ void cLogMenu::handleCancel()
 void cLogMenu::handleUp()
 {
 	if(--mCursurPos == 1)
-		mCursurPos = 2;
+		mCursurPos = 4;
 
 	mLCD->setCursor(mCursurPos,0);
 }

@@ -1,40 +1,40 @@
 #include <cyg/kernel/diag.h>
 #include <stdio.h>
 
-#include "menu_pump_interval.h"
+#include "menu_day_summary.h"
 #include "log.h"
 
-cPumpIntervalMenu::cPumpIntervalMenu(cPICAXEserialLCD* lcd, cLCDmenu* parent) : cLCDmenu(lcd, "", parent)
+cPumpDaySummaryMenu::cPumpDaySummaryMenu(cPICAXEserialLCD* lcd, cLCDmenu* parent) : cLCDmenu(lcd, "", parent)
 {
 	mLogIdx = 0;
 }
 
-void cPumpIntervalMenu::open()
+void cPumpDaySummaryMenu::open()
 {
 	mLCD->clear();
 	cLog::get()->reset();
 	showLog();
 }
 
-void cPumpIntervalMenu::handleCancel()
+void cPumpDaySummaryMenu::handleCancel()
 {
 	if(mParent)
 		mParent->returnParentMenu();
 }
 
-void cPumpIntervalMenu::handleDown()
+void cPumpDaySummaryMenu::handleDown()
 {
 	showLog();
 }
 
-void cPumpIntervalMenu::showLog()
+void cPumpDaySummaryMenu::showLog()
 {
-	time_t on,off,duration;
+	time_t on, duration;
 
 	mLCD->clear();
 
 
-	if(cLog::get()->getNextOnDuration((cyg_uint8)5, duration, on, off))
+	if(cLog::get()->getNextDayOnDuration((cyg_uint8)5, duration, on))
 	{
 		struct tm*  info;
 
@@ -44,10 +44,8 @@ void cPumpIntervalMenu::showLog()
 
 		mLCD->println(1,"#%02d %s", mLogIdx++, buffer);
 
-		mLCD->println(2,"ON : %02d:%02d:%02d", info->tm_hour, info->tm_min, info->tm_sec);
+//		mLCD->println(2,"ON : %02d:%02d:%02d", info->tm_hour, info->tm_min, info->tm_sec);
 
-		info = localtime(&off);
-		mLCD->println(3,"OFF: %02d:%02d:%02d", info->tm_hour, info->tm_min, info->tm_sec);
 
 		info = localtime(&duration);
 		char durationString[16];
@@ -66,7 +64,7 @@ void cPumpIntervalMenu::showLog()
 		{
 			sprintf(&durationString[3],"  %ds", info->tm_sec);
 		}
-		mLCD->println(4,durationString);
+		mLCD->println(3,durationString);
 	}
 	else
 	{
@@ -75,7 +73,7 @@ void cPumpIntervalMenu::showLog()
 	}
 }
 
-cPumpIntervalMenu::~cPumpIntervalMenu()
+cPumpDaySummaryMenu::~cPumpDaySummaryMenu()
 {
 }
 

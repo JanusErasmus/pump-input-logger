@@ -8,10 +8,11 @@ class cLog : public cDebug
 {
 private:
    static cLog* __instance;
-   cyg_uint32 mStartAddr;
-   cyg_uint32 mEndAddr;
-   cyg_uint32 mCurrAddr;
-   cyg_uint32 mReadAddr;
+   cyg_uint32 mStartAddr;	///Start of FLASH
+   cyg_uint32 mEndAddr;		///End of FLASH
+   cyg_uint32 mHeadAddr;	///Address for first un-acknowledged log, head of circular buffer
+   cyg_uint32 mTailAddr;	///Address to write logs into, tail of circular buffer
+   cyg_uint32 mReadAddr;	///Read address, readEvent() reads event at this address. [readNext() -> increments; readPrev() -> decrements]
    cyg_uint32 mHighestSeq;
 
    cyg_mutex_t mLogMutex;
@@ -29,13 +30,13 @@ public:
 
    cyg_bool isEmpty();
    cyg_bool readPrev();
-   cyg_bool acknowledge();
+   cyg_bool acknowledge(time_t logTime = 0);
    cyg_bool readNext();
    void reset();
 
    cyg_bool getNextOnDuration( cyg_uint8 &day, cyg_uint8 port, time_t &duration, time_t &on, time_t &off);
    cyg_bool getNextOnDuration(cyg_uint8 port, time_t &duration, time_t &on, time_t &off);
-   cyg_bool getNextDayOnDuration(cyg_uint8 port, time_t &duration);
+   cyg_bool getNextDayOnDuration(cyg_uint8 port, time_t &duration, time_t &on);
 
    void logEvent(cEvent *e);
    cyg_bool readEvent(cEvent *e);

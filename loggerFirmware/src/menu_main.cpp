@@ -21,24 +21,27 @@ void cMainMenu::open()
 	//list all the sub menus
 
 	mLCD->println(2, "- LOGS");
-	mLCD->println(3, "- SET TIME");
+
+	mLCD->println(4, "- SET TIME");
 
 	mLCD->showCursor(mCursurPos,0);
 }
 
 void cMainMenu::handleEnter()
 {
-	if((mCursurPos - 1) > mMenuCnt)
+	if(mCursurPos > (mMenuCnt + 1))
 		return;
 
 	mLCD->hideCursor();
 
-	switch(mCursurPos - 2)
+	switch(mCursurPos)
 	{
-	case 0:
+	case 2:
 		mSubMenu = new cLogMenu(mLCD, this);
 		break;
-	case 1:
+	case 3:
+		break;
+	case 4:
 		mSubMenu = new cSetTimeMenu(mLCD, this);
 		break;
 
@@ -59,7 +62,7 @@ void cMainMenu::handleCancel()
 void cMainMenu::handleUp()
 {
 	if(--mCursurPos == 1)
-		mCursurPos = 2;
+		mCursurPos = mMenuCnt + 1;
 
 	mLCD->setCursor(mCursurPos,0);
 }

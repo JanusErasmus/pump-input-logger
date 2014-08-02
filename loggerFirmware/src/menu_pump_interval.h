@@ -4,6 +4,7 @@
 
 class cPumpIntervalMenu : public cLCDmenu
 {
+	cyg_uint8 mLogIdx;
 	void showLog();
 
 public:
@@ -11,9 +12,7 @@ public:
 
 	void open();
 
-	void handleEnter();
 	void handleCancel();
-	void handleUp();
 	void handleDown();
 
 	virtual ~cPumpIntervalMenu();

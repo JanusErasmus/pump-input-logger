@@ -46,17 +46,18 @@ cLog::cLog(cyg_uint32 sectorStart)
 		/* The tail is the next valid entry we find from here */
 		find_entry(first_valid,tail_addr,true ,true);
 		mReadAddr = tail_addr;
+		mHeadAddr = mReadAddr;
 //		diag_printf("readAddr: 0x%08X\n", mReadAddr);
 
 		/* This is the head */
 		find_entry(tail_addr,head_addr);
-		mCurrAddr = head_addr;
+		mTailAddr = head_addr;
 //		diag_printf("currAddr: 0x%08X\n", mCurrAddr);
 
 		set_sequence();
-		if(!check_space(mCurrAddr))
+		if(!check_space(mTailAddr))
 		{
-			make_space(mCurrAddr);
+			make_space(mTailAddr);
 		}
 
 		dbg_printf(1,"Mapping done \n");
@@ -66,12 +67,13 @@ cLog::cLog(cyg_uint32 sectorStart)
 	{
 		dbg_printf(1,"Nothing valid start from the beginning \n");
 		make_space(mStartAddr);
-		mCurrAddr = mStartAddr;
+		mTailAddr = mStartAddr;
 		mReadAddr = mStartAddr;
+		mHeadAddr = mStartAddr;
 		cEvent::setSeqNumber(0);
 	}
-	diag_printf("LOG: Head is at 0x%08X\n", mCurrAddr);
-	diag_printf("LOG: Tail is at 0x%08X\n", mReadAddr);
+	diag_printf("LOG: Head is at 0x%08X\n", mReadAddr);
+	diag_printf("LOG: Tail is at 0x%08X\n", mTailAddr);
 	diag_printf("LOG: %d logs in list\n", count());
 }
 
@@ -82,12 +84,12 @@ void cLog::logEvent(cEvent *e)
 
    sEventData evt_data = e->getData();
 
-   dbg_printf(1, "LOG: Log evt %d @ 0x%08X\n",e->getSeq(), mCurrAddr);
+   dbg_printf(1, "LOG: Log evt %d @ 0x%08X\n",e->getSeq(), mTailAddr);
 
 
-   cyg_flash_program(mCurrAddr,(cyg_uint8 *)&evt_data,sizeof(sEventData), NULL);
+   cyg_flash_program(mTailAddr,(cyg_uint8 *)&evt_data,sizeof(sEventData), NULL);
 
-   dbg_printf(2, "\nW Log @ %p len: %d\n", mCurrAddr, sizeof(sEventData));
+   dbg_printf(2, "\nW Log @ %p len: %d\n", mTailAddr, sizeof(sEventData));
    dbg_dump_buf(2, (cyg_uint8 *)&evt_data,sizeof(sEventData));
    dbg_printf(2, "\n");
 
@@ -170,14 +172,14 @@ void cLog::make_space(cyg_uint32 addr)
 
 void cLog::inc_curr_addr()
 {
-	cyg_uint32 curr_addr = mCurrAddr;
+	cyg_uint32 curr_addr = mTailAddr;
 	cyg_uint32 next_addr = curr_addr + sizeof(sEventData);
 
 	//rolled over to start
 	if(next_addr +  sizeof(sEventData) >= mEndAddr)
 	{
 		make_space(mStartAddr);
-		mCurrAddr = mStartAddr;
+		mTailAddr = mStartAddr;
 		return;
 	}
 
@@ -195,7 +197,7 @@ void cLog::inc_curr_addr()
 		}
 	}
 
-	mCurrAddr = next_addr;
+	mTailAddr = next_addr;
 
 }
 
@@ -205,13 +207,13 @@ void cLog::set_sequence()
    sEventData evt_data;
    cyg_uint32 seq;
 
-   if(mCurrAddr == mStartAddr)
+   if(mTailAddr == mStartAddr)
    {
       addr = mEndAddr;
    }
    else
    {
-      addr = mCurrAddr;
+      addr = mTailAddr;
    }
 
    addr -= sizeof(sEventData);
@@ -246,7 +248,7 @@ cyg_bool cLog::readNext()
 {
    cyg_uint32 addr = mReadAddr;
 
-   if(addr == mCurrAddr)
+   if(addr == mTailAddr)
    {
       return false;
    }
@@ -259,7 +261,7 @@ cyg_bool cLog::readNext()
 
    mReadAddr = addr;
 
-   if(addr == mCurrAddr)
+   if(addr == mTailAddr)
    {
       return false;
    }
@@ -269,33 +271,46 @@ cyg_bool cLog::readNext()
 
 void cLog::reset()
 {
-	mReadAddr = mStartAddr;
+	mReadAddr = mHeadAddr;
 }
 
 cyg_uint32 cLog::count()
 {
-	if(mCurrAddr >= mReadAddr)
-		return (mCurrAddr - mReadAddr) / sizeof(sEventData);
+	if(mTailAddr >= mReadAddr)
+		return (mTailAddr - mReadAddr) / sizeof(sEventData);
 	else
-		return ((mCurrAddr - mStartAddr) + (mEndAddr - mReadAddr)) / sizeof(sEventData);
+		return ((mTailAddr - mStartAddr) + (mEndAddr - mReadAddr)) / sizeof(sEventData);
 }
 
-cyg_bool cLog::acknowledge()
+cyg_bool cLog::acknowledge(time_t logTime)
 {
    cEvent evt;
-   readEvent(&evt);
-   evt.setProcessed();
-   sEventData evt_data = evt.getData();
-   cyg_flash_program(mReadAddr,(cyg_uint8 *)&evt_data,sizeof(sEventData), NULL);
-
-   //when last log in final sector has been acknowledged, erase sector
-   if(mReadAddr + sizeof(cEvent) + sizeof(cEvent) > mEndAddr)
+   reset();
+   if(!readEvent(&evt))
    {
-	   diag_printf("Last sector erased\n");
-	   cyg_flash_erase(mReadAddr, 1, NULL);
+	   diag_printf("No logs to acknowledge\n");
+	   return false;
    }
 
+   //acknowledge everything prior to logTime
+   if(logTime && ((time_t)evt.getTimeStamp() > logTime))
+   {
+	   diag_printf("Logs left is younger than logTime\n");
+	   return false;
+   }
 
+   evt.setProcessed();
+   sEventData evt_data = evt.getData();
+   cyg_flash_program(mHeadAddr,(cyg_uint8 *)&evt_data,sizeof(sEventData), NULL);
+
+   //when last log in final sector has been acknowledged, erase sector
+   if(mHeadAddr + sizeof(cEvent) + sizeof(cEvent) > mEndAddr)
+   {
+	   diag_printf("Last sector erased\n");
+	   cyg_flash_erase(mHeadAddr, 1, NULL);
+   }
+
+   mHeadAddr += sizeof(cEvent);
    diag_printf("Ack: 0x%08X\n",evt.getSeq());
    return true;
 }
@@ -312,7 +327,7 @@ cyg_bool cLog::readPrev()
       addr = mEndAddr - sizeof(sEventData) ;
    }
 
-   if(addr == mCurrAddr)
+   if(addr == mTailAddr)
    {
       return false;
    }
@@ -325,7 +340,7 @@ cyg_bool cLog::readPrev()
 
 cyg_bool cLog::isEmpty()
 {
-  return (mCurrAddr == mReadAddr)?true:false;
+  return (mTailAddr == mReadAddr)?true:false;
 }
 
 void cLog::showLogs()
@@ -375,29 +390,29 @@ cyg_bool cLog::getNextOnDuration(cyg_uint8 &day, cyg_uint8 port, time_t &duratio
 		struct tm*  info;
 		time_t evtTime = e.getTimeStamp();
 		info = localtime(&evtTime);
-
 		if(day == 0)
 		{
 			day = info->tm_mday;
 		}
 		else if(day != info->tm_mday)
 		{
+			duration = 0;
 			return false;
 		}
 	}
 
 	do
 	{
-		if((e.getPort() == port) && (e.getState() == 1) && (e.getType() == cEvent::EVENT_INPUT))
-		{
-			stat = true;
-			break;
-		}
-
 		if(!readNext())
 		{
 			stat = false;
 			reset();
+			break;
+		}
+
+		if((e.getPort() == port) && (e.getState() == 1) && (e.getType() == cEvent::EVENT_INPUT))
+		{
+			stat = true;
 			break;
 		}
 
@@ -412,15 +427,16 @@ cyg_bool cLog::getNextOnDuration(cyg_uint8 &day, cyg_uint8 port, time_t &duratio
 
 	while(readEvent(&e))
 	{
+		if(!readNext())
+		{
+			break;
+		}
+
 		if((e.getPort() == port) && (e.getState() == 0))
 		{
 			stat = true;
 			break;
 		}
-
-		if(!readNext())
-			reset();
-
 	};
 
 	if(!stat)
@@ -443,10 +459,10 @@ cyg_bool cLog::getNextOnDuration(cyg_uint8 port, time_t &duration, time_t &on, t
 	return getNextOnDuration(day, port, duration, on, off);
 }
 
-cyg_bool cLog::getNextDayOnDuration(cyg_uint8 port, time_t &duration)
+cyg_bool cLog::getNextDayOnDuration(cyg_uint8 port, time_t &duration, time_t &on)
 {
 	static cyg_uint8 currentDay = 0;
-	time_t on,off,OnDuration;
+	time_t off,OnDuration;
 
 	duration = 0;
 	while(getNextOnDuration(currentDay, 5, OnDuration, on, off))
@@ -454,8 +470,13 @@ cyg_bool cLog::getNextDayOnDuration(cyg_uint8 port, time_t &duration)
 		duration += OnDuration;
 	}
 
-	diag_printf("day %d, %ds\n", currentDay, duration);
 	currentDay++;
+
+	if(!duration)
+	{
+		currentDay = 0;
+		return false;
+	}
 
 	return true;
 }
@@ -467,27 +488,29 @@ void cLog::logDebug(cTerm & term, int argc,char * argv[])
 
 	if(!strcmp(argv[0], "show"))
 	{
+		__instance->reset();
 		__instance->showLogs();
-
-		time_t onTime;
-		__instance->getNextDayOnDuration(5, onTime);
 	}
 	else if(!strcmp(argv[0], "log"))
 	{
 		time_t logTime = time(0);
+		struct tm *info = localtime(&logTime);
+		info->tm_mday -= 1;
+
 		static cyg_uint8 state = 0;
 
 		if(argc > 1)
 		{
-			cyg_uint8 port = 0;
+			cyg_uint8 port = 5;
 			cyg_uint8 cnt = strtoul(argv[1],NULL,10);
 
 			diag_printf("Logging %d events:\n", cnt);
 
 			for(cyg_uint8 k = 0; k < cnt; k++)
 			{
-				cEvent e(port, state, logTime);
-				port++;
+				info->tm_hour += 1;
+
+				cEvent e(port, state, mktime(info));
 				state = (~(state) & 0x01);
 
 				__instance->logEvent(&e);
@@ -496,7 +519,7 @@ void cLog::logDebug(cTerm & term, int argc,char * argv[])
 		}
 		else
 		{
-			cEvent e((cyg_uint8)0, state, logTime);
+			cEvent e((cyg_uint8)5, state, logTime);
 			state =(~(state) & 0x01);
 
 			__instance->logEvent(&e);
@@ -507,10 +530,9 @@ void cLog::logDebug(cTerm & term, int argc,char * argv[])
 
 	}
 	else if(!strcmp(argv[0], "ack"))
-		{
+	{
 		__instance->acknowledge();
-		__instance->readNext();
-		}
+	}
 }
 
 cLog::~cLog()

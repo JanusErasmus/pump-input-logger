@@ -4,6 +4,7 @@
 
 class cLogAckMenu : public cLCDmenu
 {
+	cyg_uint8 mCursurPos;
 
 public:
 	cLogAckMenu(cPICAXEserialLCD* lcd, cLCDmenu* parent = 0);
@@ -12,6 +13,8 @@ public:
 
 	void handleEnter();
 	void handleCancel();
+	void handleUp();
+	void handleDown();
 
 	virtual ~cLogAckMenu();
 };
