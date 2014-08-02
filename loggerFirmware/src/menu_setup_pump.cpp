@@ -1,17 +1,16 @@
 #include <cyg/kernel/diag.h>
 
-#include "menu_main.h"
-#include "menu_log.h"
 #include "menu_setup_pump.h"
-#include "menu_set_time.h"
+#include "menu_set_upRest.h"
+#include "menu_set_frame.h"
 
-cMainMenu::cMainMenu(cPICAXEserialLCD* lcd, cLCDmenu * parent) : cLCDmenu(lcd, "Main Menu", parent)
+cSetupPumpMenu::cSetupPumpMenu(cPICAXEserialLCD* lcd, cLCDmenu * parent) : cLCDmenu(lcd, "SETUP PUMP", parent)
 {
-	mMenuCnt = 3;
+	mMenuCnt = 2;
 	mCursurPos = 2;
 }
 
-void cMainMenu::open()
+void cSetupPumpMenu::open()
 {
 	mLCD->clear();
 	mLCD->println(1,mHeading);
@@ -21,14 +20,13 @@ void cMainMenu::open()
 
 	//list all the sub menus
 
-	mLCD->println(2, "- LOGS");
-	mLCD->println(3, "- SETUP PUMP");
-	mLCD->println(4, "- SET TIME");
+	mLCD->println(2, "- SET UP/REST TIMES");
+	mLCD->println(3, "- SET PUMP FRAME");
 
 	mLCD->showCursor(mCursurPos,0);
 }
 
-void cMainMenu::handleEnter()
+void cSetupPumpMenu::handleEnter()
 {
 	if(mCursurPos > (mMenuCnt + 1))
 		return;
@@ -38,13 +36,10 @@ void cMainMenu::handleEnter()
 	switch(mCursurPos)
 	{
 	case 2:
-		mSubMenu = new cLogMenu(mLCD, this);
+		mSubMenu = new cSetUpRestMenu(mLCD, this);
 		break;
 	case 3:
-		mSubMenu = new cSetupPumpMenu(mLCD, this);
-		break;
-	case 4:
-		mSubMenu = new cSetTimeMenu(mLCD, this);
+		mSubMenu = new cSetFrameMenu(mLCD, this);
 		break;
 
 	default:
@@ -55,13 +50,13 @@ void cMainMenu::handleEnter()
 		mSubMenu->open();
 }
 
-void cMainMenu::handleCancel()
+void cSetupPumpMenu::handleCancel()
 {
 	if(mParent)
 	mParent->returnParentMenu();
 }
 
-void cMainMenu::handleUp()
+void cSetupPumpMenu::handleUp()
 {
 	if(--mCursurPos == 1)
 		mCursurPos = mMenuCnt + 1;
@@ -69,7 +64,7 @@ void cMainMenu::handleUp()
 	mLCD->setCursor(mCursurPos,0);
 }
 
-void cMainMenu::handleDown()
+void cSetupPumpMenu::handleDown()
 {
 	if(++mCursurPos > 4)
 		mCursurPos = 2;
@@ -77,7 +72,7 @@ void cMainMenu::handleDown()
 	mLCD->setCursor(mCursurPos,0);
 }
 
-cMainMenu::~cMainMenu()
+cSetupPumpMenu::~cSetupPumpMenu()
 {
 }
 

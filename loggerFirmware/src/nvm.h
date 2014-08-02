@@ -60,6 +60,9 @@ private:
 		cyg_uint8 pumpFrameStart;
 		cyg_uint8 pumpFrameEnd;
 
+		cyg_uint8 pumpUpTime;
+		cyg_uint8 pumpRestTime;
+
 		cyg_uint16 crc;
 	} __attribute__((__packed__)) mDevStat;
 
@@ -126,6 +129,11 @@ public:
 	cyg_uint8 getPumpFrameStart();
 	void setPumpFrameEnd(cyg_uint8);
 	cyg_uint8 getPumpFrameEnd();
+
+	void setPumpUpTime(cyg_uint8);
+	cyg_uint8 getPumpUpTime();
+	void setPumpRestTime(cyg_uint8);
+	cyg_uint8 getPumpRestTime();
 
 	static void config(cTerm & t,int mArgc,char *mArgv[]);
 	static void nvmBuff(cTerm & t,int argc,char *argv[]);

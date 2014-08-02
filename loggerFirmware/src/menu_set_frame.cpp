@@ -13,7 +13,7 @@ void cSetFrameMenu::open()
 {
 	mLCD->clear();
 	mLCD->println(1,mHeading);
-	mLCD->println(2,"Start: %02dh End:%02dh", cNVM::get()->getPumpFrameStart(), cNVM::get()->getPumpFrameEnd());
+	mLCD->println(2,"Start:%02dh  End:%02dh", cNVM::get()->getPumpFrameStart(), cNVM::get()->getPumpFrameEnd());
 	mLCD->println(3,"- Set Start time");
 	mLCD->println(4,"- Set End time");
 

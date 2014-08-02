@@ -73,6 +73,9 @@ cNVM::cNVM() : mReadyFlag(false)
 
 			mDevStat.pumpFrameStart = 0;
 			mDevStat.pumpFrameEnd = 0;
+
+			mDevStat.pumpUpTime = 1;
+			mDevStat.pumpRestTime = 1;
 		}
 
 		updateStat();
@@ -218,6 +221,36 @@ void cNVM::setPumpFrameEnd(cyg_uint8 end)
 cyg_uint8 cNVM::getPumpFrameEnd()
 {
 	return mDevStat.pumpFrameEnd ;
+}
+
+void cNVM::setPumpUpTime(cyg_uint8 start)
+{
+	if(mDevStat.pumpUpTime != start)
+	{
+		diag_printf("Saving up Time: %d\n", start);
+		mDevStat.pumpUpTime = start;
+		updateStat();
+	}
+}
+
+cyg_uint8 cNVM::getPumpUpTime()
+{
+	return mDevStat.pumpUpTime ;
+}
+
+void cNVM::setPumpRestTime(cyg_uint8 end)
+{
+	if(mDevStat.pumpRestTime != end)
+	{
+		diag_printf("Saving rest Time: %d\n", end);
+		mDevStat.pumpRestTime = end;
+		updateStat();
+	}
+}
+
+cyg_uint8 cNVM::getPumpRestTime()
+{
+	return mDevStat.pumpRestTime ;
 }
 
 
@@ -433,6 +466,9 @@ void cNVM::nvmBuff(cTerm & t,int argc,char *argv[])
 	t<<(YELLOW("\nPump Frame:\n"));
 	printf(" - Start %02dH00\n", __instance->getPumpFrameStart());
 	printf(" - End   %02dH00\n", __instance->getPumpFrameEnd());
+	t<<(YELLOW("Pump Up/Rest Time:\n"));
+	printf(" - UP   %02dh\n", __instance->getPumpUpTime());
+	printf(" - Rest %02dh\n", __instance->getPumpRestTime());
 }
 
 void cNVM::config(cTerm & t,int mArgc,char *mArgv[])

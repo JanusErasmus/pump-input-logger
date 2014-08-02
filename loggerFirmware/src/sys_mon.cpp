@@ -38,7 +38,7 @@ cSysMon::cSysMon()
 	mPumpDownTime = false;
 
 	cPICAXEserialLCD::init(SERIAL_CONFIG_DEVICE);
-	mMenu = new cStandbyMenu(cPICAXEserialLCD::get(), 0, mPumpStatus, cInput::get()->getPortState(5), mPumpInFrameFlag);
+	mMenu = new cStandbyMenu(cPICAXEserialLCD::get());
 
 	mWatchDog = new wdKicker(300);
 
@@ -55,6 +55,8 @@ cSysMon::cSysMon()
 			&mThread);
 
 	cyg_thread_resume(mThreadHandle);
+
+	QAction(new cActionQueue::s_action(cActionQueue::plainAction, sysmonHandlePump));
 
 }
 
@@ -144,10 +146,10 @@ cyg_bool cSysMon::handleAction(cyg_addrword_t action)
 				mPumpInFrameFlag = true;
 
 					//stop pump if it has been running for set Interval
-					if(mPumpStartTime && (now - mPumpStartTime) > 10)
+					if(mPumpStartTime && (now - mPumpStartTime) > (cNVM::get()->getPumpUpTime() * 3600))
 					{
 						//start the pump again after delay for set Interval
-						if(mPumpIdleTime && (now - mPumpIdleTime) > 10)
+						if(mPumpIdleTime && (now - mPumpIdleTime) > (cNVM::get()->getPumpRestTime() * 3600))
 						{
 							mPumpIdleTime = 0;
 							mPumpStartTime = now;
@@ -175,6 +177,10 @@ cyg_bool cSysMon::handleAction(cyg_addrword_t action)
 			}
 			else
 			{
+				diag_printf("SYSMON: PUMP force stop\n");
+				mPumpIdleTime = 0;
+				mPumpStartTime = 0;
+				stopPump(now);
 				mPumpInFrameFlag = false;
 			}
 			((cStandbyMenu*)mMenu)->setInFrameState(mPumpInFrameFlag);
