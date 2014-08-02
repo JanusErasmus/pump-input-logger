@@ -31,9 +31,14 @@ cSysMon::cSysMon()
 {
 	mRXlen = 0;
 	replied = false;
+	mPumpStatus = false;
+	mPumpStartTime = 0;
+	mPumpIdleTime = 0;
+	mPumpInFrameFlag = false;
+	mPumpDownTime = false;
 
 	cPICAXEserialLCD::init(SERIAL_CONFIG_DEVICE);
-	mMenu = new cStandbyMenu(cPICAXEserialLCD::get());
+	mMenu = new cStandbyMenu(cPICAXEserialLCD::get(), 0, mPumpStatus, cInput::get()->getPortState(5), mPumpInFrameFlag);
 
 	mWatchDog = new wdKicker(300);
 
@@ -58,7 +63,6 @@ void cSysMon::sys_thread_func(cyg_addrword_t arg)
 	cSysMon *t = (cSysMon *)arg;
 	cyg_bool monStat = false;
 
-	((cStandbyMenu*)t->mMenu)->setPumpState(cInput::get()->getPortState(5));
 	t->mMenu->open();
 
 	for(;;)
@@ -108,13 +112,14 @@ cyg_bool cSysMon::monitor()
 
 	diag_printf("SYSMON: IDLE\n");
 
+	QAction(new cActionQueue::s_action(cActionQueue::plainAction, sysmonHandlePump));
+
 	//switch LCD back light off
 	cOutput::get()->setPortState(0,1);
 	if(mMenu)
 	{
 		delete mMenu;
-		mMenu = new cStandbyMenu(cPICAXEserialLCD::get());
-		((cStandbyMenu*)mMenu)->setPumpState(cInput::get()->getPortState(5));
+		mMenu = new cStandbyMenu(cPICAXEserialLCD::get(), 0, mPumpStatus, cInput::get()->getPortState(5), mPumpInFrameFlag);
 		mMenu->open();
 	}
 
@@ -123,8 +128,103 @@ cyg_bool cSysMon::monitor()
 
 cyg_bool cSysMon::handleAction(cyg_addrword_t action)
 {
+	switch(action)
+	{
+	case sysmonHandlePump:
+	{
+		time_t now = cRTC::get()->timeNow();
 
+		//Switch pump on when in time frame and tank level is low
+		if(!cInput::get()->getPortState(5))
+		{
+			struct tm * info = localtime(&now);
+
+			if((cNVM::get()->getPumpFrameStart() <= info->tm_hour) && (info->tm_hour < cNVM::get()->getPumpFrameEnd()))
+			{
+				mPumpInFrameFlag = true;
+
+					//stop pump if it has been running for set Interval
+					if(mPumpStartTime && (now - mPumpStartTime) > 10)
+					{
+						//start the pump again after delay for set Interval
+						if(mPumpIdleTime && (now - mPumpIdleTime) > 10)
+						{
+							mPumpIdleTime = 0;
+							mPumpStartTime = now;
+							diag_printf("SYSMON: PUMP Restarted\n");
+							startPump(now);
+
+							((cStandbyMenu*)mMenu)->setRestingState(0);
+						}
+						else
+						{
+							mPumpIdleTime = now;
+							diag_printf("SYSMON: PUMP Resting\n");
+							stopPump(now);
+
+							((cStandbyMenu*)mMenu)->setRestingState(1);
+						}
+					}
+					else
+					{
+						mPumpStartTime = now;
+						diag_printf("SYSMON: PUMP Started\n");
+						startPump(now);
+					}
+
+			}
+			else
+			{
+				mPumpInFrameFlag = false;
+			}
+			((cStandbyMenu*)mMenu)->setInFrameState(mPumpInFrameFlag);
+		}
+		else //always switch pump off
+		{
+			mPumpIdleTime = 0;
+			mPumpStartTime = 0;
+			diag_printf("SYSMON: PUMP Stopped\n");
+			((cStandbyMenu*)mMenu)->setRestingState(0);
+			stopPump(now);
+		}
+	}
+	break;
+	default:
+		break;
+	}
 	return true;
+}
+void cSysMon::startPump(time_t now)
+{
+	if(!mPumpStatus)
+	{
+		mPumpStatus = true;
+		cOutput::get()->setPortState(1,1);
+
+		((cStandbyMenu*)mMenu)->setPumpState(1);
+
+		//log pump event
+		cEvent e((cyg_uint8)5, (cyg_uint8)1, now);
+		e.showEvent();
+		cLog::get()->logEvent(&e);
+	}
+}
+
+void cSysMon::stopPump(time_t now)
+{
+	if(mPumpStatus)
+	{
+		mPumpStatus = false;
+		cOutput::get()->setPortState(1,0);
+
+		((cStandbyMenu*)mMenu)->setPumpState(0);
+
+		//log pump event
+		cEvent e((cyg_uint8)5, (cyg_uint8)0, now);
+		e.showEvent();
+		cLog::get()->logEvent(&e);
+
+	}
 }
 
 cyg_bool cSysMon::handleEvent(s_event* evt)
@@ -153,18 +253,12 @@ cyg_bool cSysMon::handleEvent(s_event* evt)
 		}
 
 		//always handle pump input
-		if(evt->portNumber == 4 || evt->portNumber == 5)
+		if(evt->portNumber == 5)
 		{
 			diag_printf("SYSMON: Input %d : %s\n", evt->portNumber, evt->state?"close":"open");
+			((cStandbyMenu*)mMenu)->setTankLevel(cInput::get()->getPortState(5));
 
-			((cStandbyMenu*)mMenu)->setPumpState(cInput::get()->getPortState(5));
-
-			cEvent e(evt->portNumber, evt->state, cRTC::get()->timeNow());
-			e.showEvent();
-
-			cLog::get()->logEvent(&e);
-
-			cOutput::get()->setPortState(1,evt->state);
+			QAction(new cActionQueue::s_action(cActionQueue::plainAction, sysmonHandlePump));
 		}
 	}
 	return true;
@@ -218,17 +312,10 @@ void cSysMon::handleSMScommand(cMdmReadSMS::sSMS * sms)
 bool cSysMon::placeMissedCall()
 {
 	bool status = false;
-	bool stat = 0;
 
 	diag_printf("SYSMON: placing missed call\n");
 
-	if(cNVM::get()->getCallIndex())
-		stat = cModem::get()->missedCall(cNVM::get()->getCallIndex());
-	else
-		stat = cModem::get()->missedCall(cNVM::get()->getSimCell());
-
-
-	if(stat)
+	if(cModem::get()->missedCall(cNVM::get()->getSimCell()))
 	{
 		status = true;
 	}

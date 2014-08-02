@@ -2,6 +2,7 @@
 
 #include "menu_main.h"
 #include "menu_log.h"
+#include "menu_set_frame.h"
 #include "menu_set_time.h"
 
 cMainMenu::cMainMenu(cPICAXEserialLCD* lcd, cLCDmenu * parent) : cLCDmenu(lcd, "Main MENU", parent)
@@ -21,7 +22,7 @@ void cMainMenu::open()
 	//list all the sub menus
 
 	mLCD->println(2, "- LOGS");
-
+	mLCD->println(3, "- SET PUMP FRAME");
 	mLCD->println(4, "- SET TIME");
 
 	mLCD->showCursor(mCursurPos,0);
@@ -40,6 +41,7 @@ void cMainMenu::handleEnter()
 		mSubMenu = new cLogMenu(mLCD, this);
 		break;
 	case 3:
+		mSubMenu = new cSetFrameMenu(mLCD, this);
 		break;
 	case 4:
 		mSubMenu = new cSetTimeMenu(mLCD, this);

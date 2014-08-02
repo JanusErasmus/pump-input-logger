@@ -299,7 +299,7 @@ void cModem::handleURC(const char* response)
 	if(!strncmp(response,"+CMTI:", cmdLen))
 	{
 		diag_printf("MODEM: Received SMS\n");
-	//TODO	cSysMon::get()->QAction(new cSysMon::s_action(cSysMon::plainAction, cSysMon::sysmonActionSMS));
+	//XXX	cSysMon::get()->QAction(new cSysMon::s_action(cSysMon::plainAction, cSysMon::sysmonActionSMS));
 
 		return;
 	}

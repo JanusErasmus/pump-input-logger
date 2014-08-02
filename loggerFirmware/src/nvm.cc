@@ -69,6 +69,10 @@ cNVM::cNVM() : mReadyFlag(false)
 			mDevStat.outputDefaultStatus[k] = 0;
 			mDevStat.inputDefaultStatus[k] = 0;
 			mDevStat.analogDefaultSamplerate[k] = 0;
+			mDevStat.sampleRange[k] = 1;
+
+			mDevStat.pumpFrameStart = 0;
+			mDevStat.pumpFrameEnd = 0;
 		}
 
 		updateStat();
@@ -158,6 +162,22 @@ void cNVM::setAnalogStat(cyg_uint8 port, cyg_uint8 stat)
 	}
 }
 
+void cNVM::setSampleRange(cyg_uint8 port, float rate)
+{
+	if(mDevStat.sampleRange[port] != rate)
+		{
+			printf("Saving default on analog %d: %f\n", port, rate);
+			//diag_printf("DevStat was: %d, \n", mDevStat.inputStatus[device] );
+			mDevStat.sampleRange[port] = rate;
+			updateStat();
+		}
+}
+
+float cNVM::getSampleRange(cyg_uint8 port)
+{
+	return mDevStat.sampleRange[port];
+}
+
 cyg_bool cNVM::readNVM(sNvmData* temp_data)
 {
 	cyg_flash_read(NVM_SECTOR, (cyg_uint8 *) temp_data, sizeof(sNvmData), 0);
@@ -169,6 +189,37 @@ cyg_bool cNVM::readNVM(sNvmData* temp_data)
 
 	return false;
 }
+
+void cNVM::setPumpFrameStart(cyg_uint8 start)
+{
+	if(mDevStat.pumpFrameStart != start)
+	{
+		diag_printf("Saving frame start H: %d\n", start);
+		mDevStat.pumpFrameStart = start;
+		updateStat();
+	}
+}
+
+cyg_uint8 cNVM::getPumpFrameStart()
+{
+	return mDevStat.pumpFrameStart ;
+}
+
+void cNVM::setPumpFrameEnd(cyg_uint8 end)
+{
+	if(mDevStat.pumpFrameEnd != end)
+	{
+		diag_printf("Saving frame start H: %d\n", end);
+		mDevStat.pumpFrameEnd = end;
+		updateStat();
+	}
+}
+
+cyg_uint8 cNVM::getPumpFrameEnd()
+{
+	return mDevStat.pumpFrameEnd ;
+}
+
 
 void cNVM::setDefault()
 {
@@ -240,7 +291,6 @@ cNVM::sNvmData::sNvmData()
 	server_port = 0;
 	sim_puk_flag = 0;
 	updatePeriod = 0;
-	call_index = 1;
 }
 
 void cNVM::setAPN(char *apn)
@@ -346,20 +396,6 @@ void cNVM::setSimPukFlag(bool stat)
 	}
 }
 
-cyg_uint8 cNVM::getCallIndex()
-{
-   return mNvmData.call_index;
-}
-
-void cNVM::setCallIndex(cyg_uint8 stat)
-{
-	if(mNvmData.call_index != stat)
-	{
-		mNvmData.call_index = stat;
-		update();
-	}
-}
-
 bool cNVM::getSimPukFlag()
 {
    return mNvmData.sim_puk_flag;
@@ -382,15 +418,22 @@ void cNVM::set_connection_defaults()
 }
 
 
-//void cNVM::nvmBuff(cTerm & t,int argc,char *argv[])
-//{
-//	t<<(YELLOW("Default status:\n"));
-//	printf("  %-10s%-10s%-10s\n", "Output", "Input", "Analog");
-//	for(int k = 0; k < NVM_MON_CNT; k++)
-//	{
-//		printf("%d: %02X        %02X        %02d\n", k, cNVM::get()->getOutputStat(k), cNVM::get()->getInputStat(k), cNVM::get()->getAnalogStat(k));
-//	}
-//}
+void cNVM::nvmBuff(cTerm & t,int argc,char *argv[])
+{
+	if(!__instance)
+		return;
+
+	t<<(YELLOW("Default status:\n"));
+	printf("  %-10s%-10s%-10s%-10s\n", "Output", "Input", "Analog", "Range");
+	for(int k = 0; k < NVM_MON_CNT; k++)
+	{
+		printf("%d: %02X        %02X        %02d        %f\n", k, __instance->getOutputStat(k), __instance->getInputStat(k), __instance->getAnalogStat(k), __instance->getSampleRange(k));
+	}
+
+	t<<(YELLOW("\nPump Frame:\n"));
+	printf(" - Start %02dH00\n", __instance->getPumpFrameStart());
+	printf(" - End   %02dH00\n", __instance->getPumpFrameEnd());
+}
 
 void cNVM::config(cTerm & t,int mArgc,char *mArgv[])
 {
@@ -540,25 +583,6 @@ void cNVM::config(cTerm & t,int mArgc,char *mArgv[])
 				return;
 			}
 		}
-		else if(!strcmp("idx",mArgv[arg_idx]))
-		{
-			// Move onto the parameter//
-			arg_idx++;
-			int index;
-			if(arg_idx < mArgc)
-			{
-				// We have a parameter //
-				index = atoi(mArgv[arg_idx]);
-				t<<"Setting idx to "<<index<<"\n";
-				__instance->setCallIndex(index);
-			}
-			else
-			{
-				// Just print the index //
-				t<<"IDX="<<(int)__instance->getCallIndex()<<"\n";
-				return;
-			}
-		}
 		else if(!strcmp("default",mArgv[arg_idx]))
 		{
 			// Move onto the parameter//
@@ -573,7 +597,7 @@ void cNVM::config(cTerm & t,int mArgc,char *mArgv[])
 		// move onto next param descriptor //
 		arg_idx++;
 	}
-	t<<t.format("%12s","ALRM IDX = ")	<<(int)__instance->getCallIndex()<<"\n";
+
 	t<<t.format("%12s","ALRM CELL = ")	<<__instance->getSimCell()<<"\n";
 	t<<t.format("%12s","SIM PIN = ")	<<__instance->getSimPin()<<"\n";
 	t<<t.format("%12s","SIM PUK = ")	<<__instance->getSimPuk()<<"\n";

@@ -203,7 +203,7 @@ void cLED::animateIdle()
 {
 	eLEDcolor c1, c2;
 
-	if(1) //TODO IDLE COLOUR
+	if(1) //XXX IDLE COLOUR
 	{
 		c1 = off;
 		c2 = green;

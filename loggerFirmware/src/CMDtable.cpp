@@ -41,6 +41,7 @@ TermCMD::cmd_table_t TermCMD::mCmdTable [] =
 
     {"NVM"	,0,0,0},
     {"cfg","<param to change>","Configures the dial values", cNVM::config},
+    {"nvm","",				"Shows nvm", cNVM::nvmBuff},
 
     {"MODEM"	,0,0,0},
     {"AT****", "",			"Send modem cmd (CAPITALIZED)", cModem::ATcmd},

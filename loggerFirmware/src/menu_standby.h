@@ -6,11 +6,19 @@
 class cStandbyMenu : public cLCDmenu
 {
 	cyg_bool mPumpState;
+	cyg_bool mTankLevel;
+	cyg_bool mInFrameFlag;
+	cyg_bool mRestingFlag;
+
+	void showStatus();
 
 public:
-	cStandbyMenu(cPICAXEserialLCD* lcd, cLCDmenu* parent = 0);
+	cStandbyMenu(cPICAXEserialLCD* lcd, cLCDmenu* parent = 0, cyg_uint8 state = 0, cyg_uint8 level = 0, cyg_bool inFrameFlag = 0);
 
+	void setTankLevel(cyg_bool state);
 	void setPumpState(cyg_bool state);
+	void setInFrameState(cyg_bool state);
+	void setRestingState(cyg_bool state);
 
 	void open();
 

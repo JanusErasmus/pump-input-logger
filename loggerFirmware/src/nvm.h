@@ -43,8 +43,6 @@ private:
 		cyg_uint8 sim_puk[NVM_SIM_PUK_LEN];
 		cyg_bool sim_puk_flag;
 
-		cyg_uint8 call_index;
-
 		cyg_uint16 crc;
 
 
@@ -57,6 +55,10 @@ private:
 		cyg_uint8 outputDefaultStatus[NVM_MON_CNT];
 		cyg_uint8 inputDefaultStatus[NVM_MON_CNT];
 		cyg_uint8 analogDefaultSamplerate[NVM_MON_CNT];
+		float sampleRange[NVM_MON_CNT];
+
+		cyg_uint8 pumpFrameStart;
+		cyg_uint8 pumpFrameEnd;
 
 		cyg_uint16 crc;
 	} __attribute__((__packed__)) mDevStat;
@@ -105,8 +107,8 @@ public:
 	char* getSimPuk();
 	void setSimPukFlag(bool stat);
 	bool getSimPukFlag();
-	void setCallIndex(cyg_uint8 stat);
-	cyg_uint8 getCallIndex();
+
+
 
 	void setOutputStat(cyg_uint8,cyg_uint8);
 	cyg_uint8 getOutputStat(cyg_uint8);
@@ -117,8 +119,16 @@ public:
 	void setAnalogStat(cyg_uint8,cyg_uint8);
 	cyg_uint8 getAnalogStat(cyg_uint8);
 
-	static void config(cTerm & t,int mArgc,char *mArgv[]);
+	void setSampleRange(cyg_uint8 port, float rate);
+	float getSampleRange(cyg_uint8 port);
 
+	void setPumpFrameStart(cyg_uint8);
+	cyg_uint8 getPumpFrameStart();
+	void setPumpFrameEnd(cyg_uint8);
+	cyg_uint8 getPumpFrameEnd();
+
+	static void config(cTerm & t,int mArgc,char *mArgv[]);
+	static void nvmBuff(cTerm & t,int argc,char *argv[]);
 
 };
 

@@ -17,7 +17,7 @@ class cSysMon : public cDebug, public cActionQueue
 public:
 	enum e_sysmon_action
 	{
-		sysmonAction,
+		sysmonHandlePump,
 	};
 
 private:
@@ -40,6 +40,12 @@ private:
 
 	cyg_mutex_t mMonitorMutex;
 
+	cyg_bool mPumpStatus;
+	time_t mPumpStartTime;
+	time_t mPumpIdleTime;
+	cyg_bool mPumpInFrameFlag;
+	cyg_bool mPumpDownTime;
+
 	cLCDmenu * mMenu;
 
 	wdKicker* mWatchDog;
@@ -56,6 +62,9 @@ private:
 
 	void handleSMSlist();
 	void handleSMScommand(cMdmReadSMS::sSMS * sms);
+
+	void startPump(time_t now);
+	void stopPump(time_t now);
 
 public:
 	static void init();

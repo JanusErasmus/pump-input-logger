@@ -5,19 +5,92 @@
 #include "MCP_rtc.h"
 #include "menu_main.h"
 
-cStandbyMenu::cStandbyMenu(cPICAXEserialLCD* lcd, cLCDmenu* parent) : cLCDmenu(lcd, "PUMP LOGGER", parent)
+cStandbyMenu::cStandbyMenu(
+		cPICAXEserialLCD* lcd,
+		cLCDmenu* parent,
+		cyg_uint8 pumpState,
+		cyg_uint8 tankLevel,
+		cyg_bool inFrameFlag
+		) : cLCDmenu(lcd, "PUMP LOGGER", parent)
 {
-	mPumpState = 0;
+	mPumpState = pumpState;
+	mTankLevel = tankLevel;
+	mInFrameFlag = inFrameFlag;
+	mRestingFlag = false;
+}
+
+void cStandbyMenu::showStatus()
+{
+	cPICAXEserialLCD::get()->println(3,"TANK %s",mTankLevel?"FULL":"LOW ");
+
+	if(mPumpState)
+	{
+		cPICAXEserialLCD::get()->println(4,"PUMP ON      ");
+	}
+	else
+	{
+		if(mInFrameFlag)
+		{
+			if(mRestingFlag)
+				cPICAXEserialLCD::get()->println(4,"PUMP RESTING ");
+			else
+				cPICAXEserialLCD::get()->println(4,"PUMP OFF     ");
+		}
+		else
+			cPICAXEserialLCD::get()->println(4,"PUMP DISABLED");
+	}
+}
+
+void cStandbyMenu::setTankLevel(cyg_bool state)
+{
+	if(mTankLevel == state)
+			return;
+
+	mTankLevel = state;
+
+	if(!mSubMenu)
+	{
+		showStatus();
+	}
 }
 
 void cStandbyMenu::setPumpState(cyg_bool state)
 {
+	if(mPumpState == state)
+			return;
+
 	mPumpState = state;
 
 	if(!mSubMenu)
 	{
-		cPICAXEserialLCD::get()->println(3,"PUMP %s",mPumpState?"RUNNING":"STOPPED");
+		showStatus();
 	}
+}
+
+void cStandbyMenu::setInFrameState(cyg_bool state)
+{
+	if(mInFrameFlag == state)
+		return;
+
+	mInFrameFlag = state;
+
+	if(!mSubMenu)
+	{
+		showStatus();
+	}
+}
+
+void cStandbyMenu::setRestingState(cyg_bool state)
+{
+	if(mRestingFlag == state)
+			return;
+
+	mRestingFlag = state;
+
+		if(!mSubMenu)
+		{
+			showStatus();
+		}
 }
 
 void cStandbyMenu::open()
@@ -28,8 +101,7 @@ void cStandbyMenu::open()
 	cPICAXEserialLCD::get()->hideCursor();
 	cPICAXEserialLCD::get()->clear();
 	cPICAXEserialLCD::get()->println(1, "PUMP LOGGER    %02d:%02d", info->tm_hour, info->tm_min);
-
-	cPICAXEserialLCD::get()->println(3,"PUMP %s",mPumpState?"RUNNING":"STOPPED");
+	showStatus();
 }
 
 void cStandbyMenu::handleEnter()

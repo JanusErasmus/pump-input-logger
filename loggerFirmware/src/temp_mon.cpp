@@ -150,17 +150,17 @@ void cTempMon::setSample(cyg_uint8 port, float val)
 		return;
 
 	float prevSample = ANsamples[port].get().value;
-//TODO	float range = cNVM::get()->getSampleRange(port);
-//
-//	if((prevSample - range) > val || val > (prevSample + range))
-//	{
-//		ANsamples[port].set(val);
-//
-//		cEvent e(port, val, cRTC::get()->timeNow());
-//		e.showEvent();
-//		cLog::get()->logEvent(&e);
-//
-//	}
+	float range = cNVM::get()->getSampleRange(port);
+
+	if((prevSample - range) > val || val > (prevSample + range))
+	{
+		ANsamples[port].set(val);
+
+		cEvent e(port, val, cRTC::get()->timeNow());
+		e.showEvent();
+		cLog::get()->logEvent(&e);
+
+	}
 }
 
 cyg_bool cTempMon::isCritical(cyg_uint8 port, float val)
