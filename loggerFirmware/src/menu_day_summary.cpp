@@ -40,12 +40,11 @@ void cPumpDaySummaryMenu::showLog()
 
 		info = localtime(&on);
 		char buffer[20];
-		strftime(buffer,20,"%a  %d-%m-%Y", info);
-
+		strftime(buffer,20,"%A", info);
 		mLCD->println(1,"#%02d %s", mLogIdx++, buffer);
 
-//		mLCD->println(2,"ON : %02d:%02d:%02d", info->tm_hour, info->tm_min, info->tm_sec);
-
+		strftime(buffer,20,"%d-%m-%Y", info);
+		mLCD->println(2,"    %s", buffer);
 
 		info = localtime(&duration);
 		char durationString[16];
@@ -64,7 +63,7 @@ void cPumpDaySummaryMenu::showLog()
 		{
 			sprintf(&durationString[3],"  %ds", info->tm_sec);
 		}
-		mLCD->println(3,durationString);
+		mLCD->println(4,durationString);
 	}
 	else
 	{

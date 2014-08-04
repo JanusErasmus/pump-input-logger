@@ -25,19 +25,19 @@ void cStandbyMenu::showStatus()
 
 	if(mPumpState)
 	{
-		cPICAXEserialLCD::get()->println(4,"PUMP ON      ");
+		cPICAXEserialLCD::get()->println        (4,"PUMP ON            ");
 	}
 	else
 	{
 		if(mInFrameFlag)
 		{
 			if(mRestingFlag)
-				cPICAXEserialLCD::get()->println(4,"PUMP RESTING ");
+				cPICAXEserialLCD::get()->println(4,"PUMP OFF (RESTING) ");
 			else
-				cPICAXEserialLCD::get()->println(4,"PUMP OFF     ");
+				cPICAXEserialLCD::get()->println(4,"PUMP OFF           ");
 		}
 		else
-			cPICAXEserialLCD::get()->println(4,"PUMP DISABLED");
+			cPICAXEserialLCD::get()->println    (4,"PUMP OFF (DISABLED)");
 	}
 }
 
