@@ -4,7 +4,7 @@
 #include "menu_get_number.h"
 #include "nvm.h"
 
-cSetFrameMenu::cSetFrameMenu(cPICAXEserialLCD* lcd, cLCDmenu* parent) : cLCDmenu(lcd, "SET PUMP TIME", parent)
+cSetFrameMenu::cSetFrameMenu(cPICAXEserialLCD* lcd, cLCDmenu* parent) : cLCDmenu(lcd, "SET PUMP FRAME", parent)
 {
 	mCursurPos = 3;
 }
@@ -13,9 +13,9 @@ void cSetFrameMenu::open()
 {
 	mLCD->clear();
 	mLCD->println(1,mHeading);
-	mLCD->println(2,"Start:%02dh  End:%02dh", cNVM::get()->getPumpFrameStart(), cNVM::get()->getPumpFrameEnd());
-	mLCD->println(3,"- Set Start time");
-	mLCD->println(4,"- Set End time");
+	mLCD->println(2,"START:%02dh  END:%02dh", cNVM::get()->getPumpFrameStart(), cNVM::get()->getPumpFrameEnd());
+	mLCD->println(3,"- Set START time");
+	mLCD->println(4,"- Set END time");
 
 	mLCD->showCursor(mCursurPos,0);
 }
@@ -25,12 +25,12 @@ void cSetFrameMenu::handleEnter()
 	switch(mCursurPos)
 	{
 	case 3:
-		mSubMenu = new cGetNumberMenu("START hour", cNVM::get()->getPumpFrameStart(), mLCD, this);
+		mSubMenu = new cGetNumberMenu("START HOUR", cNVM::get()->getPumpFrameStart(), mLCD, this);
 		mLCD->hideCursor();
 		mSubMenu->open();
 		break;
 	case 4:
-		mSubMenu = new cGetNumberMenu("END hour", cNVM::get()->getPumpFrameEnd(), mLCD, this);
+		mSubMenu = new cGetNumberMenu("END HOUR", cNVM::get()->getPumpFrameEnd(), mLCD, this);
 		mLCD->hideCursor();
 		mSubMenu->open();
 		break;
