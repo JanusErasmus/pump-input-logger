@@ -43,6 +43,7 @@ private:
 	cyg_bool mPumpStatus;
 	time_t mPumpStartTime;
 	time_t mPumpIdleTime;
+	time_t mPumpTimeLeft;
 	cyg_bool mPumpInFrameFlag;
 	cyg_bool mPumpDownTime;
 

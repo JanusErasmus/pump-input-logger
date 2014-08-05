@@ -13,7 +13,7 @@ void cSetUpRestMenu::open()
 {
 	mLCD->clear();
 	mLCD->println(1,mHeading);
-	mLCD->println(2,"UP:%02dh      REST:%02dh", cNVM::get()->getPumpUpTime(), cNVM::get()->getPumpRestTime());
+	mLCD->println(2,"UP:%02dm      REST:%02dm", cNVM::get()->getPumpUpTime(), cNVM::get()->getPumpRestTime());
 	mLCD->println(3,"- Set UP time");
 	mLCD->println(4,"- Set REST time");
 
@@ -25,12 +25,12 @@ void cSetUpRestMenu::handleEnter()
 	switch(mCursurPos)
 	{
 	case 3:
-		mSubMenu = new cGetNumberMenu("UP time", cNVM::get()->getPumpUpTime(), mLCD, this);
+		mSubMenu = new cGetNumberMenu("UP time [m]", cNVM::get()->getPumpUpTime(), mLCD, this);
 		mLCD->hideCursor();
 		mSubMenu->open();
 		break;
 	case 4:
-		mSubMenu = new cGetNumberMenu("REST time", cNVM::get()->getPumpRestTime(), mLCD, this);
+		mSubMenu = new cGetNumberMenu("REST time [m]", cNVM::get()->getPumpRestTime(), mLCD, this);
 		mLCD->hideCursor();
 		mSubMenu->open();
 		break;

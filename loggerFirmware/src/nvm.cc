@@ -212,7 +212,7 @@ void cNVM::setPumpFrameEnd(cyg_uint8 end)
 {
 	if(mDevStat.pumpFrameEnd != end)
 	{
-		diag_printf("Saving frame start H: %d\n", end);
+		diag_printf("Saving frame end H: %d\n", end);
 		mDevStat.pumpFrameEnd = end;
 		updateStat();
 	}

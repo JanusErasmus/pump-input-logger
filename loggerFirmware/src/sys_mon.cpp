@@ -34,6 +34,7 @@ cSysMon::cSysMon()
 	mPumpStatus = false;
 	mPumpStartTime = 0;
 	mPumpIdleTime = 0;
+	mPumpTimeLeft = 0;
 	mPumpInFrameFlag = false;
 	mPumpDownTime = false;
 
@@ -121,7 +122,11 @@ cyg_bool cSysMon::monitor()
 	if(mMenu)
 	{
 		delete mMenu;
-		mMenu = new cStandbyMenu(cPICAXEserialLCD::get(), 0, mPumpStatus, cInput::get()->getPortState(5), mPumpInFrameFlag);
+		mMenu = new cStandbyMenu(cPICAXEserialLCD::get(), 0,
+				mPumpStatus,
+				cInput::get()->getPortState(5),
+				mPumpInFrameFlag,
+				mPumpTimeLeft);
 		mMenu->open();
 	}
 
@@ -146,10 +151,10 @@ cyg_bool cSysMon::handleAction(cyg_addrword_t action)
 				mPumpInFrameFlag = true;
 
 					//stop pump if it has been running for set Interval
-					if(mPumpStartTime && (now - mPumpStartTime) > (cNVM::get()->getPumpUpTime() * 300))
+					if(mPumpStartTime && (now - mPumpStartTime) > (cNVM::get()->getPumpUpTime() * 60))
 					{
 						//start the pump again after delay for set Interval
-						if(mPumpIdleTime && (now - mPumpIdleTime) > (cNVM::get()->getPumpRestTime() * 300))
+						if(mPumpIdleTime && (now - mPumpIdleTime) > (cNVM::get()->getPumpRestTime() * 60))
 						{
 							mPumpIdleTime = 0;
 							mPumpStartTime = now;
@@ -168,6 +173,9 @@ cyg_bool cSysMon::handleAction(cyg_addrword_t action)
 
 							((cStandbyMenu*)mMenu)->setRestingState(1);
 						}
+
+						mPumpTimeLeft = (cNVM::get()->getPumpRestTime() * 60) - (now - mPumpIdleTime) ;
+						diag_printf("left until re-start %d\n", mPumpTimeLeft);
 					}
 					else
 					{
@@ -175,6 +183,8 @@ cyg_bool cSysMon::handleAction(cyg_addrword_t action)
 							mPumpStartTime = now;
 
 						diag_printf("SYSMON: PUMP Started %s", ctime(&mPumpStartTime));
+						mPumpTimeLeft = (cNVM::get()->getPumpUpTime() * 60) - (now - mPumpStartTime) ;
+						diag_printf("left until rest %d\n", mPumpTimeLeft);
 						startPump(now);
 					}
 
@@ -184,6 +194,7 @@ cyg_bool cSysMon::handleAction(cyg_addrword_t action)
 				diag_printf("SYSMON: PUMP force stop\n");
 				mPumpIdleTime = 0;
 				mPumpStartTime = 0;
+				mPumpTimeLeft = 0;
 				stopPump(now);
 				mPumpInFrameFlag = false;
 			}
@@ -193,10 +204,12 @@ cyg_bool cSysMon::handleAction(cyg_addrword_t action)
 		{
 			mPumpIdleTime = 0;
 			mPumpStartTime = 0;
+			mPumpTimeLeft = 0;
 			diag_printf("SYSMON: PUMP Stopped\n");
 			((cStandbyMenu*)mMenu)->setRestingState(0);
 			stopPump(now);
 		}
+		((cStandbyMenu*)mMenu)->setTimeLeft(mPumpTimeLeft);
 	}
 	break;
 	default:
