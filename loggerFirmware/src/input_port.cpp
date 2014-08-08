@@ -227,7 +227,7 @@ bool cInput::getPortState(cyg_uint8 input)
 	HAL_READ_UINT32(stm32_gpio_port_registers[port] + CYGHWR_HAL_STM32_GPIO_IDR, reg32);
 	stat = reg32 & (1 << pin);
 
-	return !stat;
+	return stat;
 }
 
 void cInput::updateAlarmLED(cyg_uint8 pin)

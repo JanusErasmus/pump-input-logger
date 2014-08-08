@@ -161,6 +161,8 @@ cyg_bool cSysMon::handleAction(cyg_addrword_t action)
 							diag_printf("SYSMON: PUMP Restarted\n");
 							startPump(now);
 
+							mPumpTimeLeft = cNVM::get()->getPumpRestTime() * 60;
+
 							((cStandbyMenu*)mMenu)->setRestingState(0);
 						}
 						else
@@ -168,13 +170,13 @@ cyg_bool cSysMon::handleAction(cyg_addrword_t action)
 							if(!mPumpIdleTime)
 								mPumpIdleTime = now;
 
+							mPumpTimeLeft = (cNVM::get()->getPumpRestTime() * 60) - (now - mPumpIdleTime) ;
+
 							diag_printf("SYSMON: PUMP Resting %s", ctime(&mPumpIdleTime));
 							stopPump(now);
 
 							((cStandbyMenu*)mMenu)->setRestingState(1);
 						}
-
-						mPumpTimeLeft = (cNVM::get()->getPumpRestTime() * 60) - (now - mPumpIdleTime) ;
 						diag_printf("left until re-start %d\n", mPumpTimeLeft);
 					}
 					else
@@ -195,6 +197,7 @@ cyg_bool cSysMon::handleAction(cyg_addrword_t action)
 				mPumpIdleTime = 0;
 				mPumpStartTime = 0;
 				mPumpTimeLeft = 0;
+
 				stopPump(now);
 				mPumpInFrameFlag = false;
 			}

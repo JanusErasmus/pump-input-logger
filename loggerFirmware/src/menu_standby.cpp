@@ -24,7 +24,7 @@ cStandbyMenu::cStandbyMenu(
 void cStandbyMenu::showStatus()
 {
 	if(!mTimeLeft)
-		cPICAXEserialLCD::get()->println        (2,"                 ");
+		cPICAXEserialLCD::get()->println        (2,"                       ");
 
 	cPICAXEserialLCD::get()->println(3,"TANK %s",mTankLevel?"FULL":"LOW ");
 
