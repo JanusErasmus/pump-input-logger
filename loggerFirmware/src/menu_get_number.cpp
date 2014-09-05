@@ -11,7 +11,7 @@ void cGetNumberMenu::open()
 	mLCD->clear();
 	mLCD->println(1,"Set: %s", mHeading);
 
-	mLCD->println(3," [%02d]", mNumber);
+	mLCD->println(3," [%03d]", mNumber);
 
 }
 
@@ -30,18 +30,18 @@ void cGetNumberMenu::handleCancel()
 
 void cGetNumberMenu::handleUp()
 {
-	if(++mNumber > 99)
+	if(++mNumber > 250)
 		mNumber = 0;
 
-	mLCD->println(3," [%02d]", mNumber);
+	mLCD->println(3," [%03d]", mNumber);
 }
 
 void cGetNumberMenu::handleDown()
 {
-	if(--mNumber > 99)
+	if(--mNumber > 250)
 		mNumber = 0;
 
-	mLCD->println(3," [%02d]", mNumber);
+	mLCD->println(3," [%03d]", mNumber);
 }
 
 cGetNumberMenu::~cGetNumberMenu()

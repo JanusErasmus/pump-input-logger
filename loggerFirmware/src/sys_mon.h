@@ -65,7 +65,7 @@ private:
 	void handleSMScommand(cMdmReadSMS::sSMS * sms);
 
 	void startPump(time_t now);
-	void stopPump(time_t now);
+	void stopPump(time_t now, bool switchRelay = true);
 
 public:
 	static void init();

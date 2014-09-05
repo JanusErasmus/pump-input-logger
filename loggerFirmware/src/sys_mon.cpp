@@ -35,7 +35,7 @@ cSysMon::cSysMon()
 	mPumpStartTime = 0;
 	mPumpIdleTime = 0;
 	mPumpTimeLeft = 0;
-	mPumpInFrameFlag = false;
+	mPumpInFrameFlag = true;
 	mPumpDownTime = false;
 
 	cPICAXEserialLCD::init(SERIAL_CONFIG_DEVICE);
@@ -80,7 +80,7 @@ void cSysMon::sys_thread_func(cyg_addrword_t arg)
 
 cyg_bool cSysMon::monitor()
 {
-	s_action  * act = (s_action *)cyg_mbox_timed_get(mActionQHandle, cyg_current_time() + 15000);
+	s_action  * act = (s_action *)cyg_mbox_timed_get(mActionQHandle, cyg_current_time() + 15000); //15000
 	if (act)
 	{
 		cyg_bool stat = false;
@@ -210,7 +210,7 @@ cyg_bool cSysMon::handleAction(cyg_addrword_t action)
 			mPumpTimeLeft = 0;
 			diag_printf("SYSMON: PUMP Stopped\n");
 			((cStandbyMenu*)mMenu)->setRestingState(0);
-			stopPump(now);
+			stopPump(now, false);
 		}
 		((cStandbyMenu*)mMenu)->setTimeLeft(mPumpTimeLeft);
 	}
@@ -225,7 +225,7 @@ void cSysMon::startPump(time_t now)
 	if(!mPumpStatus)
 	{
 		mPumpStatus = true;
-		cOutput::get()->setPortState(1,1);
+		cOutput::get()->setPortState(1,0);
 
 		((cStandbyMenu*)mMenu)->setPumpState(1);
 
@@ -236,12 +236,14 @@ void cSysMon::startPump(time_t now)
 	}
 }
 
-void cSysMon::stopPump(time_t now)
+void cSysMon::stopPump(time_t now, bool switchRelay)
 {
 	if(mPumpStatus)
 	{
 		mPumpStatus = false;
-		cOutput::get()->setPortState(1,0);
+
+		if(switchRelay)
+			cOutput::get()->setPortState(1,1);
 
 		((cStandbyMenu*)mMenu)->setPumpState(0);
 
