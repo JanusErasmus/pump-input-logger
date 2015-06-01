@@ -4,7 +4,7 @@
 #include "menu_get_number.h"
 #include "nvm.h"
 
-cSetFrameMenu::cSetFrameMenu(cPICAXEserialLCD* lcd, cLCDmenu* parent) : cLCDmenu(lcd, "SET PUMP FRAME", parent)
+cSetFrameMenu::cSetFrameMenu(cLineDisplay * lcd, cLCDmenu* parent) : cLCDmenu(lcd, "SET PUMP FRAME", parent)
 {
 	mCursurPos = 3;
 }

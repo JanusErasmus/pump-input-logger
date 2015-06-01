@@ -5,7 +5,7 @@
 #include "menu_day_summary.h"
 #include "menu_log_ack.h"
 
-cLogMenu::cLogMenu(cPICAXEserialLCD* lcd, cLCDmenu * parent) : cLCDmenu(lcd, "LOGS", parent)
+cLogMenu::cLogMenu(cLineDisplay * lcd, cLCDmenu * parent) : cLCDmenu(lcd, "LOGS", parent)
 {
 	mMenuCnt = 3;
 	mCursurPos = 2;

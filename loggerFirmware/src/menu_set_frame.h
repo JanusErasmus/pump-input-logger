@@ -8,7 +8,7 @@ class cSetFrameMenu : public cLCDmenu
 	cyg_uint8 mCursurPos;
 
 public:
-	cSetFrameMenu(cPICAXEserialLCD* lcd, cLCDmenu* parent = 0);
+	cSetFrameMenu(cLineDisplay * lcd, cLCDmenu* parent = 0);
 
 	void open();
 

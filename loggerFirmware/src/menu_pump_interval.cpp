@@ -4,7 +4,7 @@
 #include "menu_pump_interval.h"
 #include "log.h"
 
-cPumpIntervalMenu::cPumpIntervalMenu(cPICAXEserialLCD* lcd, cLCDmenu* parent) : cLCDmenu(lcd, "", parent)
+cPumpIntervalMenu::cPumpIntervalMenu(cLineDisplay * lcd, cLCDmenu* parent) : cLCDmenu(lcd, "", parent)
 {
 	mLogIdx = 0;
 }

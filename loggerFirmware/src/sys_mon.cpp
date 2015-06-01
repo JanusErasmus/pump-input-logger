@@ -8,6 +8,7 @@
 #include "crc.h"
 #include "input_port.h"
 #include "picaxe_lcd.h"
+#include "debug_display.h"
 #include "output_port.h"
 #include "log.h"
 
@@ -39,7 +40,8 @@ cSysMon::cSysMon()
 	mPumpDownTime = false;
 
 	cPICAXEserialLCD::init(SERIAL_CONFIG_DEVICE);
-	mMenu = new cStandbyMenu(cPICAXEserialLCD::get());
+	//mMenu = new cStandbyMenu(cPICAXEserialLCD::get());
+	mMenu = new cStandbyMenu(new cDebugDisplay());
 
 	mWatchDog = new wdKicker(300);
 
@@ -64,7 +66,6 @@ cSysMon::cSysMon()
 void cSysMon::sys_thread_func(cyg_addrword_t arg)
 {
 	cSysMon *t = (cSysMon *)arg;
-	cyg_bool monStat = false;
 
 	t->mMenu->open();
 
@@ -73,7 +74,7 @@ void cSysMon::sys_thread_func(cyg_addrword_t arg)
 
 		t->mWatchDog->reset();
 		cyg_mutex_lock(&t->mMonitorMutex);
-		monStat = t->monitor();
+		t->monitor();
 		cyg_mutex_unlock(&t->mMonitorMutex);
 	}
 }

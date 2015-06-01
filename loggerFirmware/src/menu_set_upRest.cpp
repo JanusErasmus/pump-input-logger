@@ -4,7 +4,7 @@
 #include "menu_get_number.h"
 #include "nvm.h"
 
-cSetUpRestMenu::cSetUpRestMenu(cPICAXEserialLCD* lcd, cLCDmenu* parent) : cLCDmenu(lcd, "SET UP/REST TIMES", parent)
+cSetUpRestMenu::cSetUpRestMenu(cLineDisplay * lcd, cLCDmenu* parent) : cLCDmenu(lcd, "SET UP/REST TIMES", parent)
 {
 	mCursurPos = 3;
 }

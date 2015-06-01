@@ -8,7 +8,7 @@ class cPumpIntervalMenu : public cLCDmenu
 	void showLog();
 
 public:
-	cPumpIntervalMenu(cPICAXEserialLCD* lcd, cLCDmenu* parent = 0);
+	cPumpIntervalMenu(cLineDisplay * lcd, cLCDmenu* parent = 0);
 
 	void open();
 

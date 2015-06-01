@@ -14,7 +14,7 @@ class cSetTimeMenu : public cLCDmenu
 
 
 public:
-	cSetTimeMenu(cPICAXEserialLCD* lcd, cLCDmenu* parent = 0);
+	cSetTimeMenu(cLineDisplay * lcd, cLCDmenu* parent = 0);
 
 	void open();
 
