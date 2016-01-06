@@ -1,0 +1,19 @@
+#######################################
+# Syntax Coloring Map For StateLogger
+#######################################
+
+#######################################
+# Datatypes (KEYWORD1)
+#######################################
+
+#######################################
+# Methods and Functions (KEYWORD2)
+#######################################
+s_event	KEYWORD1
+StateLogger	KEYWORD1
+showAll	KEYWORD2
+clear	KEYWORD2
+log	KEYWORD2
+ack	KEYWORD2
+getEvent	KEYWORD2
+getString	KEYWORD2
