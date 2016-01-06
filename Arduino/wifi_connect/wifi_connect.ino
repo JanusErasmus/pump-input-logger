@@ -7,7 +7,7 @@
 #include <StateLogger.h>
 
 #define LOGGER_ADDRESS 32
-#define TRANSFER_PERIOD 60
+#define TRANSFER_PERIOD 300
 #define DEBOUNCE 20
 
 String rxCmd;
@@ -30,16 +30,15 @@ void setup()
   pinMode(6, OUTPUT); //green
   pinMode(9, OUTPUT); //LED on WiFi SHIELD
   
-  digitalWrite(5, HIGH); 
-  digitalWrite(6, HIGH); 
-  digitalWrite(9, LOW); 
+  digitalWrite(9, LOW);   
+  digitalWrite(5, LOW); 
+  digitalWrite(6, LOW);   
   
   //Initialize serial and wait for port to open:
-  Serial.begin(9600);
-  
-  Logger.showAll();
-  
-  attachInterrupt(digitalPinToInterrupt(3), serviceInputChange, CHANGE);
+  Serial.begin(9600);  
+  Serial.println("Started Wifi Pump Logger");
+    
+  //attachInterrupt(digitalPinToInterrupt(3), serviceInputChange, CHANGE);
    
   // check for the presence of the shield:
   if (WiFi.status() == WL_NO_SHIELD)
@@ -47,12 +46,7 @@ void setup()
     Serial.println("WiFi shield not present");
     // don't continue:
     while(true);
-  }
-   
-  digitalWrite(5, LOW); 
-  digitalWrite(6, LOW);   
-
-  Serial.println("Started Wifi Pump Logger");
+  }   
 }
 
 void loop() 
@@ -82,11 +76,14 @@ void loop()
     digitalWrite(9, HIGH);
     serviceClientLogs();
   }
+
+  serviceInputChange();
+  servicePumpInterval();
 }
 
 void serviceInputChange()
 {
-   delayMicroseconds(16383);
+   //delayMicroseconds(16383);
    
   static boolean prevState = false;
   boolean pinState = digitalRead(3);
@@ -107,19 +104,41 @@ void serviceInputChange()
   }  
 }
 
+void servicePumpInterval()
+{
+  static long lastUpdate = 0;
+   if(DateTime.available() && ((lastUpdate + 60) <= DateTime.now()))
+  { 
+    lastUpdate = DateTime.now();
+    
+      static boolean flag = false;
+      if(flag)
+      {
+        flag = false;
+        digitalWrite(5, LOW);
+      }
+      else
+      {
+        flag = true;
+        digitalWrite(5, HIGH);
+      }
+  } 
+}
+
 void serviceClientLogs()
 {
   static long lastUpdate = 0;
     
   if(!DateTime.available() || ((lastUpdate + TRANSFER_PERIOD) <= DateTime.now()))
   { 
-      printWifiData();
+    
+        lastUpdate = DateTime.now();
+      //printWifiData();
       if(transferToServer())
       {        
         //Logger.clear();
         
         DateTime.available();
-        lastUpdate = DateTime.now();
         digitalClockDisplay();
       }
   } 
@@ -129,7 +148,10 @@ boolean transferToServer()
 {      
   WiFiClient client;
   boolean txStatus = false;
+
+  Serial.print("Transferring... ");
     
+    wdt_disable();
   if(client.connect(server_ip, 23))
   {
     Serial.println("CONNECTED");
@@ -141,11 +163,15 @@ boolean transferToServer()
   }  
   else
   {    
-    Serial.println("ERROR");
+    Serial.println("Host unreachable");
     client.stop();
+    
+    wdt_enable(WDTO_8S);
 
     return false;
   }
+  
+    wdt_enable(WDTO_8S);
 
  DateTime.available();
  long  startTransfer = DateTime.now();
@@ -225,33 +251,7 @@ boolean serviceServerData(WiFiClient * client)
       
       //Serial.print("RX: ");
       //Serial.println(rxString);
-  
-      if(rxString.charAt(0) == 'S')
-      {
-        int port = rxString.substring(1).toInt();
-        
-        if((port == 5) || (port == 6))
-        {
-            Serial.print("Set ");
-            Serial.println(port);
-  
-            digitalWrite(port, HIGH);
-        }
-      }
-  
-      if(rxString.charAt(0) == 'R')
-      {
-        int port = rxString.substring(1).toInt();
-        
-        if((port == 5) || (port == 6))
-        {
-            Serial.print("Reset ");
-            Serial.println(port);
-  
-            digitalWrite(port, LOW);
-        }
-      }
-  
+          
       if(rxString.charAt(0) == 'T')
       {  
         long timeStamp = rxString.substring(1).toInt();          

@@ -60,28 +60,14 @@ void MainWindow::readTCP()
         QByteArray data = client->readAll();
         int ack = parseClient(data);
 
-        static bool flag = false;
-        if(flag)
-        {
-            flag = 0;
-            client->write("S6\r\n");
-            client->write("R5\r\n");
-        }
-        else
-        {
-            flag = 1;
-            client->write("R6\r\n");
-            client->write("S5\r\n");
-        }
-
-        int timeNow = QDateTime::currentDateTime().toTime_t();
-        QString timeString = QString("T") + QString::number(timeNow) + QString("\r\n");
-        client->write(timeString.toLocal8Bit());
-
         QString ackString("A");
 
         ackString += QString::number(ack) + QString("\r\n");
         client->write(ackString.toLocal8Bit());
+
+        int timeNow = QDateTime::currentDateTime().toTime_t();
+        QString timeString = QString("T") + QString::number(timeNow) + QString("\r\n");
+        client->write(timeString.toLocal8Bit());
 
         qDebug() << "Ack " << ack << " @ " << QDateTime::currentDateTime();
     }
