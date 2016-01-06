@@ -8,7 +8,7 @@ class cSetupPumpMenu : public cLCDmenu
 	cyg_uint8 mCursurPos;
 
 public:
-	cSetupPumpMenu(cLineDisplay * lcd, cLCDmenu * parent);
+	cSetupPumpMenu(cPICAXEserialLCD* lcd, cLCDmenu * parent);
 
 	void open();
 

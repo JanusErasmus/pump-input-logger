@@ -8,7 +8,7 @@ class cMainMenu : public cLCDmenu
 	cyg_uint8 mCursurPos;
 
 public:
-	cMainMenu(cLineDisplay * lcd, cLCDmenu * parent);
+	cMainMenu(cPICAXEserialLCD* lcd, cLCDmenu * parent);
 
 	void open();
 

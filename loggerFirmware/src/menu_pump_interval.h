@@ -5,14 +5,15 @@
 class cPumpIntervalMenu : public cLCDmenu
 {
 	cyg_uint8 mLogIdx;
-	void showLog();
+	void showLog(cyg_bool nextLog = true);
 
 public:
-	cPumpIntervalMenu(cLineDisplay * lcd, cLCDmenu* parent = 0);
+	cPumpIntervalMenu(cPICAXEserialLCD* lcd, cLCDmenu* parent = 0);
 
 	void open();
 
 	void handleCancel();
+	void handleUp();
 	void handleDown();
 
 	virtual ~cPumpIntervalMenu();

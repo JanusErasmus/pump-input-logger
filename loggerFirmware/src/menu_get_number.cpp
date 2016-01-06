@@ -1,6 +1,6 @@
 #include "menu_get_number.h"
 
-cGetNumberMenu::cGetNumberMenu(const char* numberName, cyg_uint8 number, cLineDisplay * lcd, cLCDmenu* parent) :
+cGetNumberMenu::cGetNumberMenu(const char* numberName, cyg_uint8 number, cPICAXEserialLCD* lcd, cLCDmenu* parent) :
 	cLCDmenu(lcd, numberName, parent),
 	mNumber(number)
 {

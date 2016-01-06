@@ -6,7 +6,7 @@
 #include "menu_main.h"
 
 cStandbyMenu::cStandbyMenu(
-		cLineDisplay * lcd,
+		cPICAXEserialLCD* lcd,
 		cLCDmenu* parent,
 		cyg_uint8 pumpState,
 		cyg_uint8 tankLevel,
@@ -24,9 +24,9 @@ cStandbyMenu::cStandbyMenu(
 void cStandbyMenu::showStatus()
 {
 	if(!mTimeLeft)
-		mLCD->println        (2,"                       ");
+		cPICAXEserialLCD::get()->println        (2,"                       ");
 
-	mLCD->println(3,"TANK %s",mTankLevel?"FULL":"LOW ");
+	cPICAXEserialLCD::get()->println(3,"TANK %s",mTankLevel?"FULL":"LOW ");
 
 	if(mPumpState)
 	{
@@ -34,10 +34,10 @@ void cStandbyMenu::showStatus()
 		{
 			char str[20];
 			printTimeLeft(str, mTimeLeft);
-			mLCD->println      (2,"        REST\x7E %s", str);
+			cPICAXEserialLCD::get()->println      (2,"        REST\x7E %s", str);
 		}
 
-		mLCD->println        (4,"PUMP ON            ");
+		cPICAXEserialLCD::get()->println        (4,"PUMP ON            ");
 	}
 	else
 	{
@@ -49,18 +49,18 @@ void cStandbyMenu::showStatus()
 				{
 					char str[20];
 					printTimeLeft(str, mTimeLeft);
-					mLCD->println(2,"     RESTART\x7E %s", str);
+					cPICAXEserialLCD::get()->println(2,"     RESTART\x7E %s", str);
 				}
-				mLCD->println(4,"PUMP OFF (RESTING) ");
+				cPICAXEserialLCD::get()->println(4,"PUMP OFF (RESTING) ");
 			}
 			else
 			{
-				mLCD->println(4,"PUMP OFF           ");
+				cPICAXEserialLCD::get()->println(4,"PUMP OFF           ");
 			}
 		}
 		else
 		{
-			mLCD->println    (4,"PUMP OFF (DISABLED)");
+			cPICAXEserialLCD::get()->println    (4,"PUMP OFF (DISABLED)");
 		}
 	}
 }
@@ -136,9 +136,9 @@ void cStandbyMenu::open()
 	time_t now = cRTC::get()->timeNow();
 	struct tm*  info = localtime(&now);
 
-	mLCD->hideCursor();
-	mLCD->clear();
-	mLCD->println(1, "PUMP LOGGER    %02d:%02d", info->tm_hour, info->tm_min);
+	cPICAXEserialLCD::get()->hideCursor();
+	cPICAXEserialLCD::get()->clear();
+	cPICAXEserialLCD::get()->println(1, "PUMP LOGGER    %02d:%02d", info->tm_hour, info->tm_min);
 	showStatus();
 }
 

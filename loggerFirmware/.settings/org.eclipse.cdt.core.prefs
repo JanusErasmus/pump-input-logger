@@ -1,9 +1,9 @@
 eclipse.preferences.version=1
-environment/project/cdt.managedbuild.config.gnu.cross.exe.release.1104936238/BINARY_NAME/delimiter=\:
-environment/project/cdt.managedbuild.config.gnu.cross.exe.release.1104936238/BINARY_NAME/operation=append
-environment/project/cdt.managedbuild.config.gnu.cross.exe.release.1104936238/BINARY_NAME/value=logger
-environment/project/cdt.managedbuild.config.gnu.cross.exe.release.1104936238/VERSION/delimiter=\:
-environment/project/cdt.managedbuild.config.gnu.cross.exe.release.1104936238/VERSION/operation=replace
-environment/project/cdt.managedbuild.config.gnu.cross.exe.release.1104936238/VERSION/value=0000002
-environment/project/cdt.managedbuild.config.gnu.cross.exe.release.1104936238/append=true
-environment/project/cdt.managedbuild.config.gnu.cross.exe.release.1104936238/appendContributed=true
+environment/project/cdt.managedbuild.config.gnu.cygwin.exe.debug.1043405747.1839790724/BINARY_NAME/delimiter=\:
+environment/project/cdt.managedbuild.config.gnu.cygwin.exe.debug.1043405747.1839790724/BINARY_NAME/operation=append
+environment/project/cdt.managedbuild.config.gnu.cygwin.exe.debug.1043405747.1839790724/BINARY_NAME/value=inputLogger
+environment/project/cdt.managedbuild.config.gnu.cygwin.exe.debug.1043405747.1839790724/VERSION/delimiter=\:
+environment/project/cdt.managedbuild.config.gnu.cygwin.exe.debug.1043405747.1839790724/VERSION/operation=append
+environment/project/cdt.managedbuild.config.gnu.cygwin.exe.debug.1043405747.1839790724/VERSION/value=0000001
+environment/project/cdt.managedbuild.config.gnu.cygwin.exe.debug.1043405747.1839790724/append=true
+environment/project/cdt.managedbuild.config.gnu.cygwin.exe.debug.1043405747.1839790724/appendContributed=true

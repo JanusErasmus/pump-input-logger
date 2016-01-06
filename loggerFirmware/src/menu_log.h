@@ -8,7 +8,7 @@ class cLogMenu : public cLCDmenu
 	cyg_uint8 mCursurPos;
 
 public:
-	cLogMenu(cLineDisplay * lcd, cLCDmenu * parent);
+	cLogMenu(cPICAXEserialLCD* lcd, cLCDmenu * parent);
 
 	void open();
 

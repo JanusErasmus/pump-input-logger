@@ -4,7 +4,7 @@
 #include "menu_pump_interval.h"
 #include "log.h"
 
-cPumpIntervalMenu::cPumpIntervalMenu(cLineDisplay * lcd, cLCDmenu* parent) : cLCDmenu(lcd, "", parent)
+cPumpIntervalMenu::cPumpIntervalMenu(cPICAXEserialLCD* lcd, cLCDmenu* parent) : cLCDmenu(lcd, "", parent)
 {
 	mLogIdx = 0;
 }
@@ -22,19 +22,30 @@ void cPumpIntervalMenu::handleCancel()
 		mParent->returnParentMenu();
 }
 
+void cPumpIntervalMenu::handleUp()
+{
+	showLog(false);
+}
+
 void cPumpIntervalMenu::handleDown()
 {
 	showLog();
 }
 
-void cPumpIntervalMenu::showLog()
+void cPumpIntervalMenu::showLog(cyg_bool nextLog)
 {
 	time_t on,off,duration;
 
 	mLCD->clear();
 
+	cyg_bool stat = false;
 
-	if(cLog::get()->getNextOnDuration((cyg_uint8)5, duration, on, off))
+	if(nextLog)
+		stat = cLog::get()->getNextOnDuration((cyg_uint8)5, duration, on, off);
+	else
+		stat = cLog::get()->getPrevOnDuration((cyg_uint8)5, duration, on, off);
+
+	if(stat)
 	{
 		struct tm*  info;
 

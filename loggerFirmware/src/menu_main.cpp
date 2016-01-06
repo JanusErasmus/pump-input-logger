@@ -5,7 +5,7 @@
 #include "menu_setup_pump.h"
 #include "menu_set_time.h"
 
-cMainMenu::cMainMenu(cLineDisplay * lcd, cLCDmenu * parent) : cLCDmenu(lcd, "Main Menu", parent)
+cMainMenu::cMainMenu(cPICAXEserialLCD* lcd, cLCDmenu * parent) : cLCDmenu(lcd, "Main Menu", parent)
 {
 	mMenuCnt = 3;
 	mCursurPos = 2;

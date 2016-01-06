@@ -8,7 +8,7 @@ class cGetNumberMenu: public cLCDmenu
 	cyg_uint8 mNumber;
 
 public:
-	cGetNumberMenu(const char* numberName, cyg_uint8 number, cLineDisplay * lcd, cLCDmenu* parent);
+	cGetNumberMenu(const char* numberName, cyg_uint8 number, cPICAXEserialLCD* lcd, cLCDmenu* parent);
 
 	void open();
 

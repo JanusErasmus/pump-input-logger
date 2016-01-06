@@ -4,7 +4,7 @@
 #include "menu_day_summary.h"
 #include "log.h"
 
-cPumpDaySummaryMenu::cPumpDaySummaryMenu(cLineDisplay * lcd, cLCDmenu* parent) : cLCDmenu(lcd, "", parent)
+cPumpDaySummaryMenu::cPumpDaySummaryMenu(cPICAXEserialLCD* lcd, cLCDmenu* parent) : cLCDmenu(lcd, "", parent)
 {
 	mLogIdx = 0;
 }

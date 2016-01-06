@@ -34,6 +34,9 @@ public:
    cyg_bool readNext();
    void reset();
 
+   cyg_bool getPrevOnDuration( cyg_uint8 &day, cyg_uint8 port, time_t &duration, time_t &on, time_t &off);
+   cyg_bool getPrevOnDuration(cyg_uint8 port, time_t &duration, time_t &on, time_t &off);
+   cyg_bool getPrevDayOnDuration(cyg_uint8 port, time_t &duration, time_t &on);
    cyg_bool getNextOnDuration( cyg_uint8 &day, cyg_uint8 port, time_t &duration, time_t &on, time_t &off);
    cyg_bool getNextOnDuration(cyg_uint8 port, time_t &duration, time_t &on, time_t &off);
    cyg_bool getNextDayOnDuration(cyg_uint8 port, time_t &duration, time_t &on);

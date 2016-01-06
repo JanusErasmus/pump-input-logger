@@ -4,7 +4,7 @@
 #include "menu_get_number.h"
 #include "MCP_rtc.h"
 
-cSetTimeMenu::cSetTimeMenu(cLineDisplay * lcd, cLCDmenu* parent) : cLCDmenu(lcd, "SET TIME", parent)
+cSetTimeMenu::cSetTimeMenu(cPICAXEserialLCD* lcd, cLCDmenu* parent) : cLCDmenu(lcd, "SET TIME", parent)
 {
 	mCursurPos = 3;
 	mHours = 0;

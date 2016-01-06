@@ -8,7 +8,7 @@ class cSetUpRestMenu : public cLCDmenu
 	cyg_uint8 mCursurPos;
 
 public:
-	cSetUpRestMenu(cLineDisplay * lcd, cLCDmenu* parent = 0);
+	cSetUpRestMenu(cPICAXEserialLCD* lcd, cLCDmenu* parent = 0);
 
 	void open();
 

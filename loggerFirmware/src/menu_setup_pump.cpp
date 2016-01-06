@@ -4,7 +4,7 @@
 #include "menu_set_upRest.h"
 #include "menu_set_frame.h"
 
-cSetupPumpMenu::cSetupPumpMenu(cLineDisplay * lcd, cLCDmenu * parent) : cLCDmenu(lcd, "SETUP PUMP", parent)
+cSetupPumpMenu::cSetupPumpMenu(cPICAXEserialLCD* lcd, cLCDmenu * parent) : cLCDmenu(lcd, "SETUP PUMP", parent)
 {
 	mMenuCnt = 2;
 	mCursurPos = 2;

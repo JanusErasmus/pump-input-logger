@@ -4,7 +4,7 @@
 #include "log.h"
 #include "MCP_rtc.h"
 
-cLogAckMenu::cLogAckMenu(cLineDisplay * lcd, cLCDmenu* parent) : cLCDmenu(lcd, "REMOVE LOGS", parent)
+cLogAckMenu::cLogAckMenu(cPICAXEserialLCD* lcd, cLCDmenu* parent) : cLCDmenu(lcd, "REMOVE LOGS", parent)
 {
 	mCursurPos = 2;
 }

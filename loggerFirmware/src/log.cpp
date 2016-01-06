@@ -377,6 +377,111 @@ void cLog::showLogs()
 
 }
 
+cyg_bool cLog::getPrevOnDuration(cyg_uint8 port, time_t &duration, time_t &on, time_t &off)
+{
+	cyg_uint8 day = 0xFF;
+	return getPrevOnDuration(day, port, duration, on, off);
+}
+
+cyg_bool cLog::getPrevDayOnDuration(cyg_uint8 port, time_t &duration, time_t &on)
+{
+	static cyg_uint8 currentDay = 0;
+	time_t off,OnDuration;
+
+	duration = 0;
+	while(getPrevOnDuration(currentDay, 5, OnDuration, on, off))
+	{
+		duration += OnDuration;
+	}
+
+	currentDay++;
+
+	if(!duration)
+	{
+		currentDay = 0;
+		return false;
+	}
+
+	return true;
+}
+
+cyg_bool cLog::getPrevOnDuration(cyg_uint8 &day, cyg_uint8 port, time_t &duration, time_t &on, time_t &off)
+{
+	cyg_bool stat = false;
+
+	cEvent e;
+	if(!readEvent(&e))
+		return false;
+
+	if(day != 0xFF)
+	{
+		struct tm*  info;
+		time_t evtTime = e.getTimeStamp();
+		info = localtime(&evtTime);
+		if(day == 0)
+		{
+			day = info->tm_mday;
+		}
+		else if(day != info->tm_mday)
+		{
+			duration = 0;
+			return false;
+		}
+	}
+
+	do
+	{
+		if(!readPrev())
+		{
+			stat = false;
+			reset();
+			break;
+		}
+
+		if((e.getPort() == port) && (e.getState() == 1) && (e.getType() == cEvent::EVENT_INPUT))
+		{
+			stat = true;
+			break;
+		}
+
+	}while(readEvent(&e));
+
+	if(!stat)
+		return false;
+
+
+	on = e.getTimeStamp();
+	//diag_printf(" - On: %s", ctime(&on));
+
+	stat = false;
+	while(readEvent(&e))
+	{
+		if(!readNext())
+		{
+			break;
+		}
+
+		if((e.getPort() == port) && (e.getState() == 0))
+		{
+			stat = true;
+			break;
+		}
+	};
+
+	if(!stat)
+		return false;
+
+	off = e.getTimeStamp();
+	//diag_printf(" - Off: %s", ctime(&off));
+
+	if(on < off)
+		return false;
+
+	duration = on - off;
+
+	return true;
+}
+
 cyg_bool cLog::getNextOnDuration(cyg_uint8 &day, cyg_uint8 port, time_t &duration, time_t &on, time_t &off)
 {
 	cyg_bool stat = false;
@@ -425,6 +530,7 @@ cyg_bool cLog::getNextOnDuration(cyg_uint8 &day, cyg_uint8 port, time_t &duratio
 	on = e.getTimeStamp();
 	//diag_printf(" - On: %s", ctime(&on));
 
+	stat = false;
 	while(readEvent(&e))
 	{
 		if(!readNext())

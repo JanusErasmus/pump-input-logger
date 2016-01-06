@@ -2,7 +2,7 @@
 #define LCD_MENU_H_
 #include <cyg/kernel/kapi.h>
 
-#include "line_display.h"
+#include "picaxe_lcd.h"
 
 class cLCDmenu
 {
@@ -10,7 +10,7 @@ class cLCDmenu
 protected:
 	cLCDmenu* mSubMenu;
 	const char* mHeading;
-	cLineDisplay* mLCD;
+	cPICAXEserialLCD* mLCD;
 	cLCDmenu* mParent;
 
 	virtual void handleUp(){};
@@ -19,7 +19,7 @@ protected:
 	virtual void handleCancel(){};
 
 public:
-	cLCDmenu(cLineDisplay * lcd, const char * heading, cLCDmenu * parent = 0);
+	cLCDmenu(cPICAXEserialLCD* lcd, const char* heading, cLCDmenu * parent = 0);
 
 	virtual void open() = 0;
 

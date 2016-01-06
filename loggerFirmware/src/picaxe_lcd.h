@@ -6,11 +6,10 @@
 #include "definitions.h"
 #include "term.h"
 #include "debug.h"
-#include "line_display.h"
 
 #define CFG_BUFF_SIZE 128
 
-class cPICAXEserialLCD : public cDebug,  public cLineDisplay
+class cPICAXEserialLCD : public cDebug
 {
 	static cPICAXEserialLCD* _instance;
 
@@ -24,14 +23,13 @@ class cPICAXEserialLCD : public cDebug,  public cLineDisplay
 
     void banner();
 
-	void hide();
-	void restore();
-
 public:
 	static void init(char* serDev);
 	static cPICAXEserialLCD* get();
 
 	void clear();
+	void hide();
+	void restore();
 	void setCursor(cyg_uint8 row, cyg_uint8 col);
 	void showCursor(cyg_uint8 row = 0xFF, cyg_uint8 col = 0xFF);
 	void hideCursor();

@@ -1,6 +1,6 @@
 #include "menu_lcd.h"
 
-cLCDmenu::cLCDmenu(cLineDisplay * lcd, const char* heading, cLCDmenu * parent) :
+cLCDmenu::cLCDmenu(cPICAXEserialLCD* lcd, const char* heading, cLCDmenu * parent) :
 	mSubMenu(0),
 	mHeading(heading),
 	mLCD(lcd),

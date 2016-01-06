@@ -5,7 +5,7 @@
 
 #include "definitions.h"
 #include "analogSeq.h"
-#define AN_IN_CNT 3
+
 #define FILTER_SAMPLES_CNT 5
 
 class cTempMon

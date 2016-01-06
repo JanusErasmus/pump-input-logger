@@ -8,7 +8,7 @@ class cPumpDaySummaryMenu : public cLCDmenu
 	void showLog();
 
 public:
-	cPumpDaySummaryMenu(cLineDisplay * lcd, cLCDmenu* parent = 0);
+	cPumpDaySummaryMenu(cPICAXEserialLCD* lcd, cLCDmenu* parent = 0);
 
 	void open();
 
