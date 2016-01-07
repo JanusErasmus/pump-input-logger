@@ -1,0 +1,16 @@
+#######################################
+# Syntax Coloring Map For StateLogger
+#######################################
+
+#######################################
+# Datatypes (KEYWORD1)
+#######################################
+
+#######################################
+# Methods and Functions (KEYWORD2)
+#######################################
+PumpFrame	KEYWORD1
+equals	KEYWORD2
+print	KEYWORD2
+store	KEYWORD2
+

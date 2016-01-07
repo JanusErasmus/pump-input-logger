@@ -3,6 +3,8 @@
 
 #include <arduino.h>
 
+uint8_t calc_crc(uint8_t * buff, uint8_t len);
+
 struct s_event //8 byte event
 {
    long timeStamp;
@@ -22,8 +24,7 @@ struct s_event //8 byte event
 
  private:
 	boolean isValid();
-	uint8_t calc_crc(uint8_t * buff, uint8_t len);
-   
+	
 } __attribute__((packed));
 
 class StateLogger

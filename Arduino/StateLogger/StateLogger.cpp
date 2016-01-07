@@ -2,6 +2,15 @@
 
 #include "StateLogger.h"
 
+uint8_t calc_crc(uint8_t * buff, uint8_t len)
+{
+  uint8_t csum = 0;
+  for(uint8_t k = 0; k < len; k++)
+    csum ^= buff[k];
+
+  return csum;
+}
+
 s_event::s_event()
 {
   timeStamp = 0;  
@@ -67,15 +76,6 @@ boolean s_event::isValid()
 	}
 
   return 1;
-}
-
-uint8_t s_event::calc_crc(uint8_t * buff, uint8_t len)
-{
-  uint8_t csum = 0;
-  for(uint8_t k = 0; k < len; k++)
-    csum ^= buff[k];
-
-  return csum;
 }
 
 void s_event::store(int address)

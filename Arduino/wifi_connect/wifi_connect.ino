@@ -5,6 +5,7 @@
 #include <String.h>
 #include <EEPROM.h>
 #include <StateLogger.h>
+#include <PumpFrame.h>
 
 #define LOGGER_ADDRESS 32
 #define TRANSFER_PERIOD 300
@@ -20,6 +21,8 @@ IPAddress server_ip(192, 168, 1, 160);
 void digitalClockDisplay(long timeStamp);
 
 StateLogger Logger(LOGGER_ADDRESS);
+
+PumpFrame pumpFrame(0);
 
 void setup() 
 {
@@ -47,6 +50,9 @@ void setup()
     // don't continue:
     while(true);
   }   
+
+  pumpFrame.print();
+
 }
 
 void loop() 
@@ -234,6 +240,7 @@ boolean serviceServerData(WiFiClient * client)
 {  
   static String rxString;
   boolean ackFlag = false;
+  static PumpFrame frame;
   
   while (client->available()) 
   {
@@ -256,7 +263,17 @@ boolean serviceServerData(WiFiClient * client)
       {  
         long timeStamp = rxString.substring(1).toInt();          
         DateTime.sync(timeStamp);
-        
+
+        frame.crc = calc_crc((uint8_t*)&frame, (sizeof(PumpFrame) - 1));
+        if(!pumpFrame.equals(&frame))
+        {
+          Serial.println("Update pump frame values");
+          frame.store(0);    
+
+          pumpFrame = frame;
+          pumpFrame.print();
+        }
+                
         ackFlag = true;
       }
 
@@ -271,6 +288,38 @@ boolean serviceServerData(WiFiClient * client)
         for(uint8_t k = 0; k < ack; k++)
         {
           Logger.ack();  
+        }
+      }
+
+      if(rxString.charAt(0) == 'F')
+      { 
+        if(rxString.charAt(1) == 's')
+        {
+           int value = rxString.substring(2).toInt();          
+           //Serial.print("start: ");
+           //Serial.println(value);
+           frame.startHour = value;
+        }
+        if(rxString.charAt(1) == 'e')
+        {
+           int value = rxString.substring(2).toInt();          
+           //Serial.print("end : ");
+           //Serial.println(value);           
+           frame.endHour = value;
+        }
+        if(rxString.charAt(1) == 'u')
+        {
+           int value = rxString.substring(2).toInt();          
+           //Serial.print("up : ");
+           //Serial.println(value);
+           frame.upTime = value;
+        }
+        if(rxString.charAt(1) == 'r')
+        {
+           int value = rxString.substring(2).toInt();          
+           //Serial.print("rest : ");
+           //Serial.println(value);           
+           frame.restTime = value;
         }
       }
       
