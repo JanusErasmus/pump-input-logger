@@ -64,10 +64,10 @@ void MainWindow::readTCP()
         ackString += QString::number(ack) + QString("\r\n");
         client->write(ackString.toLocal8Bit());
 
-        client->write("Fs8\r\n");
+        client->write("Fs6\r\n");
         client->write("Fe22\r\n");
-        client->write("Fu30\r\n");
-        client->write("Fr60\r\n");
+        client->write("Fu900\r\n");
+        client->write("Fr300\r\n");
 
         int timeNow = QDateTime::currentDateTime().toTime_t();
         QString timeString = QString("T") + QString::number(timeNow) + QString("\r\n");

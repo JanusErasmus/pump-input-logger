@@ -92,7 +92,7 @@ void serviceInputChange()
    //delayMicroseconds(16383);
    
   static boolean prevState = false;
-  boolean pinState = digitalRead(3);
+  boolean pinState = !digitalRead(3);
   
   if(pinState != prevState)
   {
@@ -105,30 +105,84 @@ void serviceInputChange()
     }  
     else
     {
-      Serial.println("ISR no time");      
+      Serial.println("no time");      
     }
   }  
 }
 
 void servicePumpInterval()
 {
-  static long lastUpdate = 0;
-   if(DateTime.available() && ((lastUpdate + 60) <= DateTime.now()))
-  { 
-    lastUpdate = DateTime.now();
-    
-      static boolean flag = false;
-      if(flag)
-      {
-        flag = false;
-        digitalWrite(5, LOW);
-      }
-      else
-      {
-        flag = true;
-        digitalWrite(5, HIGH);
-      }
+   if(DateTime.available())
+   {
+    //check if we are in the frame    
+    if((pumpFrame.startHour < DateTime.Hour) && (DateTime.Hour < pumpFrame.endHour))
+    {
+      //we are in the frame
+      handleOverride();
+    }
+    else
+    {
+      //we are out of operating hours, override the pump
+      digitalWrite(5, HIGH);
+    }
   } 
+}
+
+void handleOverride()
+{
+  static long pumpStart = 0;
+  static long pumpRest = 0;
+
+  //as soon as the pump has to start, start the pumpRunning time out
+  if(!pumpStart && !digitalRead(3))
+  {    
+    pumpStart = DateTime.now();
+
+    digitalWrite(5, LOW);
+  
+    Serial.print("Pump start: ");
+    digitalClockDisplay(pumpStart);
+
+    return;
+  }
+
+  if(pumpStart && !pumpRest)
+  {
+    if((pumpStart + pumpFrame.upTime) < DateTime.now())
+    {
+      pumpRest = DateTime.now();
+      
+      digitalWrite(5, HIGH);
+      
+      Serial.print("Pump rest: ");
+      digitalClockDisplay(pumpRest);
+
+      return;
+    }
+  }
+
+  if(pumpRest && pumpStart)
+  {
+    if((pumpRest + pumpFrame.restTime) < DateTime.now())
+    {
+      pumpStart = 0;
+      pumpRest = 0;
+      
+      digitalWrite(5, LOW);
+      
+      Serial.println("Pump rested");
+    }
+
+    return;
+  }
+
+  if((pumpStart || pumpRest) && digitalRead(3))
+  {
+    pumpStart = 0;
+    pumpRest = 0;
+      
+    Serial.println("Pump stopped");
+  }
 }
 
 void serviceClientLogs()
@@ -136,14 +190,11 @@ void serviceClientLogs()
   static long lastUpdate = 0;
     
   if(!DateTime.available() || ((lastUpdate + TRANSFER_PERIOD) <= DateTime.now()))
-  { 
-    
-        lastUpdate = DateTime.now();
+  {     
+      lastUpdate = DateTime.now();
       //printWifiData();
       if(transferToServer())
-      {        
-        //Logger.clear();
-        
+      {                
         DateTime.available();
         digitalClockDisplay();
       }
