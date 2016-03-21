@@ -15,6 +15,9 @@ $PumpLog = new pumplog($todayDate);
 <meta charset="UTF-8">
     <head>    
         <link href="styles.css" rel="stylesheet" type="text/css">
+        <link  href="menu/styles.css" rel="stylesheet">
+        <script src="http://code.jquery.com/jquery-latest.min.js" type="text/javascript"></script>
+        <script src="menu/script.js"></script>
         <link rel="icon" href="images/bruder_brou.png">
         <link rel="stylesheet" href="//code.jquery.com/ui/1.11.4/themes/smoothness/jquery-ui.css">
         <script src="//code.jquery.com/jquery-1.10.2.js"></script>
@@ -63,9 +66,20 @@ $PumpLog = new pumplog($todayDate);
     </head>
     <body>
         <header>
-           Time plot for <?php echo date('D j F Y', strtotime($todayDate)); ?>
+           <?php include "header.html"; ?>            
         </header>
+        <nav>
+            <div id='cssmenu'>
+            <ul>
+               <li><a href='index.php'>Home</a></li>
+               <li class='active'><a href='plot.php'>Daily plot</a></li>
+               <li><a href='#'>Monthly plot</a></li>
+               <li><a href='#'>About</a></li>
+            </ul>
+            </div>
+        </nav>
         
+        Time plot for <?php echo date('D j F Y', strtotime($todayDate)); ?> <br>
         <canvas id="cvs" width="1000" >[No canvas support]</canvas>
         
         <form method="post">

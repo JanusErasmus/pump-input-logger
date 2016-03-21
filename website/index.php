@@ -4,29 +4,31 @@
 <meta charset="UTF-8">
     <head>    
         <link href="styles.css" rel="stylesheet" type="text/css">
-        <link rel="icon" href="images/bruder_brou.png">
-        <title>Bruder Brou</title>
+        <link  href="menu/styles.css" rel="stylesheet">
+        <script src="http://code.jquery.com/jquery-latest.min.js" type="text/javascript"></script>
+        <script src="menu/script.js"></script>
+        <link rel="icon" href="images/pump.png">
+        <title>Pump Input Logger</title>
     </head>
 
     <body>
-        
-        <img src="images/bruder_brou.png" alt="Bruder brou logo" height="250" width="250">
+        <header>            
+            <?php include "header.html"; ?>
+        </header>
+         <nav>
+            <div id='cssmenu'>
+            <ul>
+               <li class='active'><a href='index.php'>Home</a></li>
+               <li><a href='plot.php'>Daily plot</a></li>
+               <li><a href='#'>Monthly plot</a></li>
+               <li><a href='#'>About</a></li>
+            </ul>
+            </div>
+        </nav>
 
-
-        <h2 class="my3rdNewStyle">Bier, lekker gemaak </h2>
-        
-        <p>
-            <form action="page.php" method="post">
-            Name: <input type="text" name="userName">
-            <input type="submit" value="Log In">
-            </form>
-        </p>
-        
-        <p><a href=" tutorial/practice.php ">PRACTICE</a>
-        <p><a href=" plot.php ">Pump plot</a>
         	
-         <div id="footer">        
-            <b>Please log in</b>        
-        </div>        
+         <footer>        
+            <b>Nice ne</b>        
+        </footer>        
     </body>
 </html>

@@ -1,9 +1,39 @@
+@font-face {
+    font-family: 'BuxtonSketch';
+    src: url('fonts/BuxtonSketch.ttf');
+}
+
+@font-face {
+    font-family: 'segoeui';
+    src: url('fonts/segoeui.ttf');
+}
+
 body, header, article, canvas, form, table, footer {
     margin:10px;
     padding:10px;
-    text-align: center;
+    text-align:center;
     border-style:solid;
     border-width:1px;
+    background-color:#179CFF;
+    font-family:segoeui;
+}
+
+header {
+    font-family:BuxtonSketch;
+    text-align:left;
+    font-size:4em;
+}
+a.a_header {
+    color:black;
+    text-decoration: none;
+}
+
+a.a_header:hover {
+    color:grey;
+}
+
+img {
+    vertical-align:middle;
 }
 
 article {
@@ -29,10 +59,6 @@ table {
 canvas {
     width:70%;
     height:70%;
-}
-
-header {
-    font-size:3em;
 }
 
 /*footer {
