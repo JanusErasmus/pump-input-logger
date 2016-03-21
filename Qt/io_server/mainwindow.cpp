@@ -15,6 +15,8 @@ MainWindow::MainWindow(QWidget *parent) :
 {
     ui->setupUi(this);
 
+    mDB = new LoggerDB("localhost", 3306);
+
     setWindowTitle("Pump Logger Server");
 
     mStatus.setText("Not updated yet");
@@ -53,7 +55,18 @@ int MainWindow::parseClient(QByteArray data)
             qDebug() << evtTime.toString("yyyy-MM-dd HH:mm:ss") << "Port " << event.at(1) << "State" << event.at(2);
 
             report.addEntry(evtTime, event.at(1).toInt(), event.at(2).toInt());
+
+            if(mDB)
+            {
+                qDebug() << "MainWindow: DB insert event";
+                mDB->insertEvent(evtTime, event.at(1).toInt(), event.at(2).toInt());
+            }
+
             validEvents++;
+        }
+        else
+        {
+            qDebug() << "Status: " << event.at(0);
         }
     }
 
@@ -153,11 +166,23 @@ void MainWindow::connected()
     }
 
     qDebug() << "Cleint connected";
-    connect(clientConnection, SIGNAL(disconnected()), clientConnection, SLOT(deleteLater()));
+    connect(clientConnection, SIGNAL(disconnected()), this, SLOT(disconnect()));
     connect(clientConnection, SIGNAL(readyRead()), this, SLOT(readTCP()));
 
-//    clientConnection->write("Hello Cleint!!!");
-//    clientConnection->disconnectFromHost();
+    if(!mDB->open())
+    {
+        qDebug() << "MainWindow: Could NOT open database";
+    }
+
+}
+
+void MainWindow::disconnect()
+{
+    QTcpSocket *client = static_cast<QTcpSocket*>(sender());
+    if(client)
+        client->deleteLater();
+
+    mDB->close();
 }
 
 MainWindow::~MainWindow()

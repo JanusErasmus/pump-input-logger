@@ -4,13 +4,20 @@
 
 #include "user_variables.h"
 
-userVariables::userVariables()
+userVariables::userVariables(QString folder)
 {
-    QString filename = getAppDataPath().append("user.var");
+    QString filename;
+
+    if(folder.isEmpty())
+        filename = QString("C:/wamp64/www/io_server/");//getAppDataPath();
+    else
+        filename = folder;
+
+    filename.append("user.var");
 
     file = new QFile(filename);
 
-    //qDebug() << "Openning userVariables in: " << filename;
+    qDebug() << "Openning userVariables in: " << filename;
     bool status = file->open(QIODevice::ReadOnly | QIODevice::Text);
     if(status)
     {

@@ -13,7 +13,7 @@ class pumplog
             die("Connection failed: " . $conn->connect_error);
         }
         
-        $sql = "select * from events where time > \"" . date('Y-m-d', strtotime($todayDate)) . "\" and time < \"" . date('Y-m-d', strtotime($todayDate)) . " 23:59:59\"";
+        $sql = "select * from events where time > \"" . date('Y-m-d', strtotime($todayDate)) . "\" and time < \"" . date('Y-m-d', strtotime($todayDate)) . " 23:59:59\" order by time";
         $events = $conn->query($sql);
 
         if ($events->num_rows >= 0)
@@ -54,9 +54,11 @@ class pumplog
         for($row = 0; $row < count($this->events); $row++) 
         {
             $evtTime = strtotime($this->events[$row][0]);
+            //echo "evtTime " . $evtTime . "<br>";
             
             if($previousTime == 0)
-                $previousTime = $evtTime;
+                $previousTime = $evtTime;            
+            //echo "previousTime " . $previousTime . "<br>";
             
             //state changed
             if($state != $this->events[$row][2])
@@ -65,12 +67,12 @@ class pumplog
                 if($state == 0)
                 {
                     $this->restTime += ($evtTime - $previousTime);
-                    //echo "rested " . $this->onTime . "<br>";
+                    //echo "rested " . $this->restTime . "<br>";
                 }
                 else //high to low
                 {
                     $this->onTime += ($evtTime - $previousTime);
-                    //echo "ran " . $this->restTime . "<br>";
+                    //echo "ran " . $this->onTime . "<br>";
                 }
                 
                 $previousTime = $evtTime;
@@ -114,10 +116,14 @@ class pumplog
     
     function printRested()
     {
+        //This is the calculated from event logs 
         if($this->restTime)
             $this->printUpTime($this->restTime);
         else
             echo "-";
+        
+        //simply take the difference
+        //$this->printUpTime(86400 - $this->onTime);
     }
 }
 ?>

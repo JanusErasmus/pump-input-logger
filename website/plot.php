@@ -18,11 +18,11 @@ $PumpLog = new pumplog($todayDate);
         <link  href="menu/styles.css" rel="stylesheet">
         <script src="http://code.jquery.com/jquery-latest.min.js" type="text/javascript"></script>
         <script src="menu/script.js"></script>
-        <link rel="icon" href="images/bruder_brou.png">
+        <link rel="icon" href="images/pump.png">
         <link rel="stylesheet" href="//code.jquery.com/ui/1.11.4/themes/smoothness/jquery-ui.css">
         <script src="//code.jquery.com/jquery-1.10.2.js"></script>
         <script src="//code.jquery.com/ui/1.11.4/jquery-ui.js"></script>
-        <title>Bruder Brou - Plot</title>
+        <title>Pump Logger - Plot</title>
                 
         <!--<meta http-equiv="refresh" content="59">*/-->
         
@@ -79,7 +79,7 @@ $PumpLog = new pumplog($todayDate);
             </div>
         </nav>
         
-        Time plot for <?php echo date('D j F Y', strtotime($todayDate)); ?> <br>
+        <h2>Time plot for <?php echo date('D j F Y', strtotime($todayDate)); ?> </h2>
         <canvas id="cvs" width="1000" >[No canvas support]</canvas>
         
         <form method="post">
@@ -90,8 +90,8 @@ $PumpLog = new pumplog($todayDate);
         <article>
         <h2>Statistics</h2>
         <table>
-        <tr><td style="text-align:right;">Running</td><td><?php $PumpLog->printRunning(); ?></td></tr>
-        <tr><td style="text-align:right;">Rested</td><td><?php $PumpLog->printRested(); ?></td></tr>
+        <tr><td>Running</td><td style="text-align:right;"><?php $PumpLog->printRunning(); ?></td></tr>
+        <tr><td>Rested</td><td style="text-align:right;"><?php $PumpLog->printRested(); ?></td></tr>
         </table>
         </article>
       

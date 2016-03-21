@@ -23,7 +23,7 @@ class userVariables
     sVariable * getVar(QString name);
 
 public:
-    userVariables();
+    userVariables(QString folder = QString());
     ~userVariables();
 
     static QString getAppDataPath();

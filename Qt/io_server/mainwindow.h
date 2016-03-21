@@ -6,6 +6,8 @@
 #include <QAbstractSocket>
 #include <QLabel>
 
+#include "logger_db.h"
+
 
 namespace Ui {
 class MainWindow;
@@ -17,6 +19,8 @@ class MainWindow : public QMainWindow
 
     QLabel mStatus;
     QTcpServer * socket;
+
+    LoggerDB * mDB;
 
      int parseClient(QByteArray data);
 
@@ -32,6 +36,7 @@ private slots:
     void displayError(QAbstractSocket::SocketError socketError);
     void netState(QAbstractSocket::SocketError state);
     void connected();
+    void disconnect();
 };
 
 #endif // MAINWINDOW_H
