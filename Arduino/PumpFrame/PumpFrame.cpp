@@ -6,6 +6,7 @@
 
 PumpFrame::PumpFrame()
 {  
+	reportRate = 300;
     startHour = 0xFF;
     endHour = 0xFF;
     upTime = 0;
@@ -40,6 +41,8 @@ boolean PumpFrame::equals(PumpFrame * frame)
 void PumpFrame::print()
 {
   Serial.println("PumpFrame:");
+  Serial.print(" rate : ");
+  Serial.println(reportRate);
   Serial.print(" start: ");
   Serial.println(startHour);
   Serial.print(" end  : ");

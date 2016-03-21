@@ -6,6 +6,7 @@
 class PumpFrame
 {
 public:
+  long reportRate;
   uint8_t startHour;
   uint8_t endHour;
   long upTime;

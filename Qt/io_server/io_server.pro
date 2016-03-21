@@ -13,8 +13,15 @@ TEMPLATE = app
 
 
 SOURCES += main.cpp\
-        mainwindow.cpp
+        mainwindow.cpp \
+    pump_report.cpp \
+    user_variables.cpp \
+    config_form.cpp
 
-HEADERS  += mainwindow.h
+HEADERS  += mainwindow.h \
+    pump_report.h \
+    user_variables.h \
+    config_form.h
 
-FORMS    += mainwindow.ui
+FORMS    += mainwindow.ui \
+    config_form.ui

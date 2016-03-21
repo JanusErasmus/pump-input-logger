@@ -6,12 +6,19 @@
 
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
+#include "pump_report.h"
+#include "user_variables.h"
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
+
+    setWindowTitle("Pump Logger Server");
+
+    mStatus.setText("Not updated yet");
+    ui->statusBar->addPermanentWidget(&mStatus);
 
     socket = new QTcpServer(this);
     connect(socket, SIGNAL(acceptError(QAbstractSocket::SocketError)), this, SLOT(displayError(QAbstractSocket::SocketError)));
@@ -26,12 +33,14 @@ MainWindow::MainWindow(QWidget *parent) :
     qDebug() << "Server started...";
 }
 
-int parseClient(QByteArray data)
+int MainWindow::parseClient(QByteArray data)
 {
     QString clientString(data);
     //qDebug() << clientString;
 
     int validEvents = 0;
+
+    pumpReport report;
 
     QStringList args = clientString.split("\r\n");
     foreach(QString a, args)
@@ -43,6 +52,7 @@ int parseClient(QByteArray data)
             QDateTime evtTime = QDateTime::fromTime_t(timeStamp);
             qDebug() << evtTime.toString("yyyy-MM-dd HH:mm:ss") << "Port " << event.at(1) << "State" << event.at(2);
 
+            report.addEntry(evtTime, event.at(1).toInt(), event.at(2).toInt());
             validEvents++;
         }
     }
@@ -64,16 +74,42 @@ void MainWindow::readTCP()
         ackString += QString::number(ack) + QString("\r\n");
         client->write(ackString.toLocal8Bit());
 
-        client->write("Fs6\r\n");
-        client->write("Fe22\r\n");
-        client->write("Fu900\r\n");
-        client->write("Fr300\r\n");
+        QString configString;
+        userVariables v;
+
+
+        int value = v.getVarString("rate").toInt() * 60;
+        configString = QString("Fp") + QString::number(value) + "\r\n";
+        client->write(configString.toLocal8Bit());
+        //client->write("Fp1800\r\n");
+
+        value = v.getVarString("start").toInt() - 2;
+        configString = QString("Fs") + QString::number(value) + "\r\n";
+        client->write(configString.toLocal8Bit());
+        //client->write("Fs10\r\n");
+
+        value = v.getVarString("stop").toInt() - 2;
+        configString = QString("Fe") + QString::number(value) + "\r\n";
+        client->write(configString.toLocal8Bit());
+        //client->write("Fe20\r\n");
+
+        value = v.getVarString("on").toInt() * 60;
+        configString = QString("Fu") + QString::number(value) + "\r\n";
+        client->write(configString.toLocal8Bit());
+        //client->write("Fu600\r\n");
+
+        value = v.getVarString("rest").toInt() * 60;
+        configString = QString("Fr") + QString::number(value) + "\r\n";
+        client->write(configString.toLocal8Bit());
+        //client->write("Fr60\r\n");
 
         int timeNow = QDateTime::currentDateTime().toTime_t();
         QString timeString = QString("T") + QString::number(timeNow) + QString("\r\n");
         client->write(timeString.toLocal8Bit());
 
         qDebug() << "Ack " << ack << " @ " << QDateTime::currentDateTime();
+
+        mStatus.setText(QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss"));
     }
 }
 

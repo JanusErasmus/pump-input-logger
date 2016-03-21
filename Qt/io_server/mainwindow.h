@@ -4,6 +4,8 @@
 #include <QMainWindow>
 #include <QTcpServer>
 #include <QAbstractSocket>
+#include <QLabel>
+
 
 namespace Ui {
 class MainWindow;
@@ -13,7 +15,10 @@ class MainWindow : public QMainWindow
 {
     Q_OBJECT
 
-     QTcpServer * socket;
+    QLabel mStatus;
+    QTcpServer * socket;
+
+     int parseClient(QByteArray data);
 
 public:
     explicit MainWindow(QWidget *parent = 0);

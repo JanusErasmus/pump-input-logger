@@ -8,8 +8,9 @@
 #include <PumpFrame.h>
 
 #define LOGGER_ADDRESS 32
-#define TRANSFER_PERIOD 300
 #define DEBOUNCE 20
+
+uint8_t noTimeBeat = 1;
 
 String rxCmd;
 
@@ -62,6 +63,7 @@ void loop()
   // attempt to connect to Wifi network:
   if(WiFi.status() != WL_CONNECTED)
   {
+    digitalWrite(6, LOW);  
     digitalWrite(9, LOW); 
     Serial.print("Attempting to connect to SSID: ");
     Serial.println(ssid);
@@ -80,6 +82,9 @@ void loop()
   if(WiFi.status() == WL_CONNECTED)
   {    
     digitalWrite(9, HIGH);
+      
+    heartBeat();
+     
     serviceClientLogs();
   }
 
@@ -87,10 +92,29 @@ void loop()
   servicePumpInterval();
 }
 
+void heartBeat()
+{
+  if(noTimeBeat) 
+  {
+    digitalWrite(6, HIGH);
+    delay(500);
+    digitalWrite(6, LOW);
+    delay(500);
+    
+    return;
+  }
+    digitalWrite(6, HIGH);  
+    delay(100);
+    digitalWrite(6, LOW);
+    delay(100);
+    digitalWrite(6, HIGH);  
+    delay(100);
+    digitalWrite(6, LOW);
+    delay(1000);
+}
+
 void serviceInputChange()
 {
-   //delayMicroseconds(16383);
-   
   static boolean prevState = false;
   boolean pinState = !digitalRead(3);
   
@@ -102,30 +126,40 @@ void serviceInputChange()
     {
       s_event evt(DateTime.now(), 3, pinState);
       Logger.log(&evt);
+
+      //Serial.println("Pump change");
     }  
     else
     {
-      Serial.println("no time");      
+      Serial.println("Change NOT logged: no time");      
     }
   }  
 }
 
 void servicePumpInterval()
 {
+  static bool overrideFlag = 0;
    if(DateTime.available())
-   {
-    //check if we are in the frame    
-    if((pumpFrame.startHour < DateTime.Hour) && (DateTime.Hour < pumpFrame.endHour))
-    {
-      //we are in the frame
-      handleOverride();
-    }
-    else
-    {
-      //we are out of operating hours, override the pump
-      digitalWrite(5, HIGH);
-    }
-  } 
+   {    
+      //check if we are in the frame    
+      if((pumpFrame.startHour <= DateTime.Hour) && (DateTime.Hour < pumpFrame.endHour))
+      {
+        if(overrideFlag)
+        {
+          overrideFlag = 0;
+          digitalWrite(5, LOW);
+        }
+        
+        //we are in the frame
+        handleOverride();
+      }
+      else
+      {
+        //we are out of operating hours, override the pump
+        digitalWrite(5, HIGH);
+        overrideFlag = 1;        
+      }
+    } 
 }
 
 void handleOverride()
@@ -180,16 +214,22 @@ void handleOverride()
   {
     pumpStart = 0;
     pumpRest = 0;
-      
+    
+    digitalWrite(5, LOW);
+          
     Serial.println("Pump stopped");
+
+    return;
   }
+  
+    digitalWrite(5, LOW);
 }
 
 void serviceClientLogs()
 {
   static long lastUpdate = 0;
     
-  if(!DateTime.available() || ((lastUpdate + TRANSFER_PERIOD) <= DateTime.now()))
+  if(!DateTime.available() || ((lastUpdate + pumpFrame.reportRate) <= DateTime.now()))
   {     
       lastUpdate = DateTime.now();
       //printWifiData();
@@ -197,6 +237,10 @@ void serviceClientLogs()
       {                
         DateTime.available();
         digitalClockDisplay();
+      }
+      else
+      {        
+        noTimeBeat = 1;
       }
   } 
 }
@@ -314,6 +358,7 @@ boolean serviceServerData(WiFiClient * client)
       {  
         long timeStamp = rxString.substring(1).toInt();          
         DateTime.sync(timeStamp);
+        noTimeBeat = 0;
 
         frame.crc = calc_crc((uint8_t*)&frame, (sizeof(PumpFrame) - 1));
         if(!pumpFrame.equals(&frame))
@@ -344,6 +389,11 @@ boolean serviceServerData(WiFiClient * client)
 
       if(rxString.charAt(0) == 'F')
       { 
+        if(rxString.charAt(1) == 'p')
+        {
+           int value = rxString.substring(2).toInt();
+           frame.reportRate = value;
+        }
         if(rxString.charAt(1) == 's')
         {
            int value = rxString.substring(2).toInt();          
