@@ -88,11 +88,11 @@ $PumpLog = new pumplog($todayDate);
         </form>
         
         <article>
-        <h2>Statistics</h2>
-        <table>
-        <tr><td>Running</td><td style="text-align:right;"><?php $PumpLog->printRunning(); ?></td></tr>
-        <tr><td>Rested</td><td style="text-align:right;"><?php $PumpLog->printRested(); ?></td></tr>
-        </table>
+            <h1>Statistics</h1>
+            <table>
+                <tr><td>Running</td><td style="text-align:right;"><?php $PumpLog->printRunning(); ?></td></tr>
+                <tr><td>Rested</td><td style="text-align:right;"><?php $PumpLog->printRested(); ?></td></tr>
+            </table>
         </article>
       
         <footer>

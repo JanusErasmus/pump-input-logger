@@ -7,7 +7,7 @@ class pumplog
     
     function __construct($todayDate)
     {
-        $conn = new mysqli("localhost", "root", "Victor874", "pumplog");
+        $conn = new mysqli("localhost", "root", "VictorHanny", "pumplog");
         if($conn->connect_error)
         {
             die("Connection failed: " . $conn->connect_error);
@@ -16,7 +16,7 @@ class pumplog
         $sql = "select * from events where time > \"" . date('Y-m-d', strtotime($todayDate)) . "\" and time < \"" . date('Y-m-d', strtotime($todayDate)) . " 23:59:59\" order by time";
         $events = $conn->query($sql);
 
-        if ($events->num_rows >= 0)
+        if ($events->num_rows >= 1)
         {          
             $index = 0;
             while($row = $events->fetch_assoc()) 

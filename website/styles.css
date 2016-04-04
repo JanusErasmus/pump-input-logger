@@ -37,7 +37,7 @@ img {
 }
 
 article {
-    width:30%;
+    width:50%;
     margin:auto;
     border-style:solid;
     border-radius:20px;
@@ -46,13 +46,13 @@ article {
 table {
     margin:auto;
     border-collapse:collapse;
-    background: #f0f0f2;
+    /*background-color: f0f0f2;*/
 }
 
 th,
 td {
   border: 1px solid #cecfd5;
-  width:50%;
+  width:40%;
 }
 
 
