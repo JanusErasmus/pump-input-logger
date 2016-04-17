@@ -1,7 +1,7 @@
 <?php
 class PumpConfig {
 
-    private $config_file = "/etc/io_server/user.var";
+    private $config_file = "/etc/loggerd/user.var";
 
     public $rate;
     public $start;

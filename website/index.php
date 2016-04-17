@@ -39,7 +39,7 @@
                       
         $conn->close();  
         
-        if((strtotime($loggersInfo[0][1]) + ($cfg->rate * 60)) < (time() + 3600))
+        if((strtotime($loggersInfo[0][1]) + ($cfg->rate * 60)) < (time()))
             $redStyle = "style=\"background-color:#FF5858\";";
 
 ?>
