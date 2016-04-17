@@ -40,6 +40,9 @@ int MainWindow::parseClient(QByteArray data)
     QString clientString(data);
     //qDebug() << clientString;
 
+    QString mac;
+    int rssi = 0;
+
     int validEvents = 0;
 
     pumpReport report;
@@ -58,7 +61,7 @@ int MainWindow::parseClient(QByteArray data)
 
             if(mDB)
             {
-                qDebug() << "MainWindow: DB insert event";
+                //qDebug() << "MainWindow: DB insert event";
                 mDB->insertEvent(evtTime, event.at(1).toInt(), event.at(2).toInt());
             }
 
@@ -66,7 +69,41 @@ int MainWindow::parseClient(QByteArray data)
         }
         else
         {
-            qDebug() << "Status: " << event.at(0);
+            //qDebug() << "Status: " << event.at(0);
+            QString line = event.at(0);
+            QStringList arguments = line.split(":");
+            if(arguments.length() > 1)
+            {
+                if(arguments.at(0) == "RSSI")
+                {
+                    rssi =  arguments.at(1).toInt();
+                    qDebug() << "RSSI is " << rssi;
+                }
+            }
+
+            if(arguments.length() > 5)
+            {
+                for(int k = 0;k < 6; k++)
+                {
+                    mac += QString("%1").arg(arguments.at(k).toInt(0, 16), 2, 16, QLatin1Char('0'));
+                    mac = mac.toUpper();
+
+                    if(k < 5)
+                        mac += ":";
+                }
+
+                qDebug() << "MAC is " << mac;
+            }
+
+        }
+    }
+
+    if(!mac.isEmpty())
+    {
+        if(mDB)
+        {
+            qDebug() << "MainWindow: DB update logger " << mac;
+            mDB->updateLogger(mac, rssi);
         }
     }
 
@@ -79,7 +116,7 @@ void MainWindow::readTCP()
     int len = client->bytesAvailable();
     if(len)
     {
-        qDebug() << "RX: " << len;
+        //qDebug() << "RX: " << len;
         QByteArray data = client->readAll();
         int ack = parseClient(data);
 

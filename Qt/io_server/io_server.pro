@@ -13,7 +13,6 @@ QTPLUGIN     += QSQLMYSQL
 TARGET = io_server
 TEMPLATE = app
 
-
 SOURCES += main.cpp\
         mainwindow.cpp \
     pump_report.cpp \
@@ -29,3 +28,5 @@ HEADERS  += mainwindow.h \
 
 FORMS    += mainwindow.ui \
     config_form.ui
+
+RC_FILE = io_server.rc

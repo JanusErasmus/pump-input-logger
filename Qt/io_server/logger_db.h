@@ -33,7 +33,7 @@ public:
     bool isOpen(){ return mOpenOk; }
 
     bool insertEvent(QDateTime evtTime, int port, int state);
-    bool updateLock(QString loggerSerial);
+    bool updateLogger(QString loggerMAC, int rssi);
 
 
 

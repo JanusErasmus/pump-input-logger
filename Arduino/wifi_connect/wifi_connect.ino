@@ -5,7 +5,9 @@
 #include <String.h>
 #include <EEPROM.h>
 #include <StateLogger.h>
-#include <PumpFrame.h>
+
+#include "PumpFrame.h"
+
 
 #define LOGGER_ADDRESS 32
 #define DEBOUNCE 20
@@ -17,7 +19,8 @@ String rxCmd;
 char ssid[] = "J_C";     //  your network SSID (name)
 char pass[] = "VictorHanny874";  // your network password
 
-IPAddress server_ip(192, 168, 1, 160);
+IPAddress server_ip(192, 168, 1, 242);
+int portNumber = 60000;
 
 void digitalClockDisplay(long timeStamp);
 
@@ -25,8 +28,11 @@ StateLogger Logger(LOGGER_ADDRESS);
 
 PumpFrame pumpFrame(0);
 
+String inputString;
+
 void setup() 
-{
+{  
+  inputString.reserve(32);
   wdt_enable(WDTO_8S);
   
   pinMode(3, INPUT_PULLUP); //PUMP blue
@@ -53,6 +59,7 @@ void setup()
   }   
 
   pumpFrame.print();
+
 
 }
 
@@ -90,6 +97,26 @@ void loop()
 
   serviceInputChange();
   servicePumpInterval();
+}
+
+
+void serialEvent()
+{
+   while (Serial.available()) 
+   {
+    // get the new byte:
+    char inChar = (char)Serial.read();
+    
+    // add it to the inputString:
+    inputString += inChar;
+    
+    if (inChar == '\n' || inChar == '\r')
+    {
+      handleTerminal(inputString);
+      inputString = "";
+    }
+
+   }
 }
 
 void heartBeat()
@@ -253,7 +280,7 @@ boolean transferToServer()
   Serial.print("Transferring... ");
     
     wdt_disable();
-  if(client.connect(server_ip, 23))
+  if(client.connect(server_ip, portNumber))
   {
     Serial.println("CONNECTED");
 
@@ -359,6 +386,10 @@ boolean serviceServerData(WiFiClient * client)
         long timeStamp = rxString.substring(1).toInt();          
         DateTime.sync(timeStamp);
         noTimeBeat = 0;
+
+        //keep server settings
+        memcpy(frame.server, pumpFrame.server, 4);
+        frame.port = pumpFrame.port;
 
         frame.crc = calc_crc((uint8_t*)&frame, (sizeof(PumpFrame) - 1));
         if(!pumpFrame.equals(&frame))
