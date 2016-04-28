@@ -1,11 +1,16 @@
 #include <WiFi.h>
-#include <utility/wl_definitions.h>
-#include <utility/wifi_spi.h>
+#include <WiFiClient.h>
+
+extern "C"
+{
+	#include <utility/wifi_spi.h>
+	//#include <utility/wl_definitions.h>
+}
 
 #include "event_reporter.h"
-#include "led_ui.h"
+#include "led_dui.h"
 
-EventReporter::EventReporter(const char * ssid, const char * pass, IPAddress server)
+EventReporterClass::EventReporterClass(const char * ssid, const char * pass, IPAddress server)
 {
 	mState = RP_UNKNOWN;
 	mProbed = false;
@@ -13,7 +18,6 @@ EventReporter::EventReporter(const char * ssid, const char * pass, IPAddress ser
 	mSSID = ssid;
 	mPassword = pass;
 	mServer = server;
-	mClient = 0;
 
 	// check for the presence of the shield:
 	if (WiFi.status() != WL_NO_SHIELD)
@@ -23,7 +27,7 @@ EventReporter::EventReporter(const char * ssid, const char * pass, IPAddress ser
 
 }
 
-void EventReporter::service()
+void EventReporterClass::service()
 {
 	if(!mProbed)
 		return;
@@ -56,23 +60,17 @@ void EventReporter::service()
 		case WL_CONNECTED:
 		{
 			Serial.println("connected");
-			LED.setConnecting();
+			LEDui.setConnecting();
 
-			if(!mClient)
-				mClient = new WiFiClient();
-
-			if(mClient->connect(mServer, 60000))
+			if(mClient.connect(mServer, 60000))
 			{
 				mState = RP_CLIENT;
 			}
 			else
 			{
 				Serial.println("Host unreachable");
-				mClient->stop();
-				delete mClient;
-				mClient = 0;
+				mClient.stop();
 			}
-
 		}
 		break;
 
@@ -82,7 +80,7 @@ void EventReporter::service()
 		break;
 		case RP_CLIENT:
 			Serial.println("client");
-			if(mClient->connected())
+			if(mClient.connected())
 			{
 				mState = RP_TRANSFER;
 			}
@@ -97,9 +95,9 @@ void EventReporter::service()
 				break;
 			}
 
-			Serial.println(mClient->status());
+			Serial.println(mClient.status());
 
-			if(mClient->connected())
+			if(mClient.connected())
 			{
 				static uint8_t count = 5;
 				Serial.print("transferring");
@@ -108,9 +106,7 @@ void EventReporter::service()
 				if(count-- == 0)
 				{
 					mState = RP_IDLE;
-
-
-					LED.setIdle();
+					LEDui.setIdle();
 				}
 
 				//mClient.write("hello\r\n");
@@ -120,12 +116,10 @@ void EventReporter::service()
 			Serial.println("disconnect");
 
 
-			if(mClient && mClient->connected())
+			if(mClient.connected())
 			{
 				Serial.println("stop client");
-				mClient->stop();
-				delete mClient;
-				mClient = 0;
+				mClient.stop();
 			}
 
 			if(state == WL_CONNECTED)
@@ -140,7 +134,7 @@ void EventReporter::service()
 
 }
 
-void EventReporter::printStatus(int state)
+void EventReporterClass::printStatus(int state)
 {
 	Serial.print("WiFi state: ");
 
@@ -176,19 +170,15 @@ void EventReporter::printStatus(int state)
 		}
 }
 
-uint8_t EventReporter::status()
+uint8_t EventReporterClass::status()
 {
 	return WiFi.status();
 }
 
-EventReporter::~EventReporter()
+EventReporterClass::~EventReporterClass()
 {
-	if(mClient)
-		delete mClient;
-
-	Serial.println("EventReporter: deleted");
 }
 
 
-EventReporter Reporter("J_C", "VictorHanny874", IPAddress(192, 168, 1, 242));
+EventReporterClass EventReporter("J_C", "VictorHanny874", IPAddress(192, 168, 1, 242));
 

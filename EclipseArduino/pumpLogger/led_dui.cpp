@@ -1,22 +1,22 @@
 
 
-#include "led_ui.h"
+#include "led_dui.h"
 
-LedUi::LedUi()
+LEDuiClass::LEDuiClass()
 {
 	mPin = 0xFF;
 	mState = LED_ERROR;
 	mCount = 0;
 }
 
-void LedUi::init(uint8_t pin)
+void LEDuiClass::init(uint8_t pin)
 {
 	mPin = pin;
 
 	pinMode(mPin, OUTPUT); //green wire, TOP LED
 }
 
-void LedUi::run()
+void LEDuiClass::run()
 {
 	if(mPin == 0xFF)
 		return;
@@ -35,7 +35,7 @@ void LedUi::run()
 	}
 }
 
-void LedUi::error()
+void LEDuiClass::error()
 {
 	switch(mCount++)
 	{
@@ -64,7 +64,7 @@ void LedUi::error()
 	}
 }
 
-void LedUi::heartBeat()
+void LEDuiClass::heartBeat()
 {
 	switch(mCount++)
 	{
@@ -95,7 +95,7 @@ void LedUi::heartBeat()
 	}
 }
 
-void LedUi::connecting()
+void LEDuiClass::connecting()
 {
 	if(mCount++ > 0)
 	{
@@ -108,9 +108,9 @@ void LedUi::connecting()
 	}
 }
 
-LedUi::~LedUi()
+LEDuiClass::~LEDuiClass()
 {
 }
 
-LedUi LED;
+LEDuiClass LEDui;
 

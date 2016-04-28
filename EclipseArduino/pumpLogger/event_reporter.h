@@ -3,7 +3,7 @@
 #include <IPAddress.h>
 #include <WiFiClient.h>
 
-class EventReporter
+class EventReporterClass
 {
 public:
 	enum eReportState
@@ -27,11 +27,11 @@ private:
 	const char * mSSID;
 	const char * mPassword;
 	IPAddress mServer;
-	WiFiClient * mClient;
+	WiFiClient mClient;
 
 public:
-	EventReporter(const char * ssid, const char * pass, IPAddress server);
-	virtual ~EventReporter();
+	EventReporterClass(const char * ssid, const char * pass, IPAddress server);
+	virtual ~EventReporterClass();
 
 	void service();
 
@@ -39,6 +39,6 @@ public:
 	void printStatus(int status = -1);
 };
 
-extern EventReporter Reporter;
+extern EventReporterClass EventReporter;
 
 #endif /* EVENT_REPORTER_H_ */

@@ -2,16 +2,20 @@
 #include <Arduino.h>
 #include <TimerOne.h>
 
+#include "pump_frame.h"
+#include "state_logger.h"
 #include "event_reporter.h"
+#include "led_dui.h"
 #include "terminal.h"
-#include "led_ui.h"
+
+PumpFrameClass PumpFrame(0);
+StateLoggerClass StateLogger(32);
 
 void tenthSecond(void)
 {
-	LED.run();
+	LEDui.run();
 }
 
-//The setup function is called once at startup of the sketch
 void setup()
 {
 	wdt_enable(WDTO_8S);
@@ -20,7 +24,7 @@ void setup()
 	Serial.begin(9600);
 	Serial.println("Wifi Pump Logger");
 
-	LED.init(6); //green wire, TOP LED
+	LEDui.init(6); //green wire, TOP LED
 
 	pinMode(3, INPUT_PULLUP); //PUMP blue
 	pinMode(5, OUTPUT); //white wire, relay
@@ -35,17 +39,15 @@ void setup()
 
 }
 
-// The loop function is called in an endless loop
 void loop()
 {
+	wdt_reset();
+
+	EventReporter.service();
 
 	wdt_reset();
 
-	Reporter.service();
-
-	wdt_reset();
-
-	 delay(1000);
+	delay(1000);
 }
 
 void serialEvent()
@@ -66,4 +68,14 @@ void serialEvent()
 			inputString = "";
 		}
 	}
+}
+
+
+uint8_t calc_crc(uint8_t * buff, uint8_t len)
+{
+	uint8_t csum = 0;
+	for(uint8_t k = 0; k < len; k++)
+		csum ^= buff[k];
+
+	return csum;
 }

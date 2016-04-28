@@ -1,11 +1,11 @@
 #include <HardwareSerial.h>
 
 #include "terminal.h"
+
 #include "event_reporter.h"
 
 Terminal::Terminal()
 {
-
 }
 
 void Terminal::handle(String line)
@@ -13,7 +13,7 @@ void Terminal::handle(String line)
 	if(line == "stat")
 	{
 		Serial.print("WiFi status");
-		Reporter.printStatus();
+		EventReporter.printStatus();
 	}
 
   int subIndex = line.indexOf(' ');

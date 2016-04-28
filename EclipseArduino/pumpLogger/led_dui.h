@@ -1,8 +1,8 @@
-#ifndef LED_UI_H_
-#define LED_UI_H_
+#ifndef LED_DUI_H_
+#define LED_DUI_H_
 #include <Arduino.h>
 
-class LedUi
+class LEDuiClass
 {
 	uint8_t mPin;
 	uint8_t mCount;
@@ -21,8 +21,8 @@ class LedUi
 	void connecting();
 
 public:
-	LedUi();
-	virtual ~LedUi();
+	LEDuiClass();
+	virtual ~LEDuiClass();
 
 	void init(uint8_t pin);
 
@@ -33,6 +33,6 @@ public:
 	void setConnecting(){ mState = LED_CONNECTING; };
 };
 
-extern LedUi LED;
+extern LEDuiClass LEDui;
 
-#endif /* LED_UI_H_ */
+#endif /* LED_DUI_H_ */

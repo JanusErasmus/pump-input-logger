@@ -1,1 +1,3 @@
-/Release_4PORT/
+/Release*
+.metadata
+RemoteSystemsTempFiles
