@@ -2,19 +2,21 @@
 #define EVENT_H_
 #include <Arduino.h>
 
+#include "Time.h"
+
 class Event
 {
 	boolean isValid();
 
 public:
-	long timeStamp;  //4 bytes
-	uint8_t port;	//1 byte
-	uint8_t state;   //1 byte
-	uint8_t ack;	//1 byte
-	uint8_t crc;	//1 byte
+	time_t timeStamp;  	//4 bytes
+	uint8_t port;		//1 byte
+	uint8_t state;   	//1 byte
+	uint8_t ack;		//1 byte
+	uint8_t crc;		//1 byte
 
 	Event();
-	Event(long timeStamp, uint8_t port, uint8_t state);
+	Event(time_t timeStamp, uint8_t port, uint8_t state);
 	Event(int address);
 
 	void store(int address);

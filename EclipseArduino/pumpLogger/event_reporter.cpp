@@ -1,6 +1,10 @@
 #include <WiFi.h>
 #include <WiFiClient.h>
 
+#include "reporter.h"
+#include "pump_frame.h"
+#include "utils.h"
+
 extern "C"
 {
 	#include <utility/wifi_spi.h>
@@ -10,14 +14,17 @@ extern "C"
 #include "event_reporter.h"
 #include "led_dui.h"
 
+extern PumpFrameClass PumpFrame;
+
 EventReporterClass::EventReporterClass(const char * ssid, const char * pass, IPAddress server)
 {
-	mState = RP_UNKNOWN;
+	mState = RP_IDLE;
 	mProbed = false;
 	mRSSI = -999;
 	mSSID = ssid;
 	mPassword = pass;
 	mServer = server;
+	mLastSync = 0;
 
 	// check for the presence of the shield:
 	if (WiFi.status() != WL_NO_SHIELD)
@@ -27,29 +34,26 @@ EventReporterClass::EventReporterClass(const char * ssid, const char * pass, IPA
 
 }
 
-void EventReporterClass::service()
+//returns true when idle
+bool EventReporterClass::run(StateLoggerClass * logger)
 {
-	if(!mProbed)
-		return;
+	if(!mProbed || !logger)
+		return false;
 
 	uint8_t state = WiFi.status();
-
-	printStatus(state);
+	//printStatus(state);
 
 	switch(mState)
 	{
-	case RP_UNKNOWN:
-		Serial.println("unknown");
+	case RP_UPDATE:
+		Serial.println("RP: update");
 		{
 			if((state == WL_IDLE_STATUS) || (state == WL_CONNECTED))
 				mState = RP_CONNECT;
 		}
 		break;
-	case RP_IDLE:
-		Serial.println("idle");
-		break;
 	case RP_CONNECT:
-		Serial.println("connect");
+		Serial.println("RP: connecting");
 		switch(state)
 		{
 		case WL_IDLE_STATUS:
@@ -59,7 +63,7 @@ void EventReporterClass::service()
 		break;
 		case WL_CONNECTED:
 		{
-			Serial.println("connected");
+			Serial.println("RP: connected");
 			LEDui.setConnecting();
 
 			if(mClient.connect(mServer, 60000))
@@ -79,7 +83,7 @@ void EventReporterClass::service()
 		}
 		break;
 		case RP_CLIENT:
-			Serial.println("client");
+			Serial.println("RP: wait client");
 			if(mClient.connected())
 			{
 				mState = RP_TRANSFER;
@@ -87,7 +91,7 @@ void EventReporterClass::service()
 
 			break;
 		case RP_TRANSFER:
-			Serial.print("transfer");
+			//Serial.print("transfer");
 
 			if(!mClient)
 			{
@@ -95,48 +99,75 @@ void EventReporterClass::service()
 				break;
 			}
 
-			Serial.println(mClient.status());
-
 			if(mClient.connected())
 			{
-				static uint8_t count = 5;
-				Serial.print("transferring");
-				Serial.println(count);
-
-				if(count-- == 0)
+				Reporter r(&mClient, logger);
+				if(r.transfer())
 				{
 					mState = RP_IDLE;
 					LEDui.setIdle();
-				}
 
-				//mClient.write("hello\r\n");
+					Serial.println("RP: stop client");
+					mClient.stop();
+
+					mLastSync = now();
+					Serial.println("RP: transfer DONE");
+				}
 			}
 			break;
 		case  RP_DISCONNECT:
-			Serial.println("disconnect");
+			Serial.println("RP: disconnect");
 
 
 			if(mClient.connected())
 			{
-				Serial.println("stop client");
-				mClient.stop();
+
 			}
 
 			if(state == WL_CONNECTED)
 			{
-				Serial.println("disconnecting");
+				Serial.println("RP: disconnecting");
 				WiFi.disconnect();
 
 				mState = RP_IDLE;
 			}
 			break;
+
+
+		case RP_IDLE:
+			//Serial.println("idle");
+
+			if((timeStatus() != timeSet) || (now() > (mLastSync + PumpFrame.reportRate)))
+			{
+				Serial.println("RP: Time to report");
+				mState = RP_UPDATE;
+			}
+
+			return true;
+			break;
 	}
 
+	return false;
+}
+
+
+bool EventReporterClass::sync()
+{
+	if(mState == RP_IDLE)
+	{
+		mState = RP_UPDATE;
+		return true;
+	}
+
+	return false;
 }
 
 void EventReporterClass::printStatus(int state)
 {
-	Serial.print("WiFi state: ");
+	Serial.println("EventReporter State:");
+	Serial.print(" - Last transfer: ");
+	digitalClockDisplay(mLastSync);
+	Serial.print(" - WiFi state: ");
 
 	if(state < 0)
 		state = WiFi.status();

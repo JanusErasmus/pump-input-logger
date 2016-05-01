@@ -1,5 +1,3 @@
-
-
 #include "led_dui.h"
 
 LEDuiClass::LEDuiClass()
@@ -58,6 +56,7 @@ void LEDuiClass::error()
 	case 11:
 		break;
 	case 12:
+	default:
 		mCount = 0;
 		break;
 
@@ -90,6 +89,7 @@ void LEDuiClass::heartBeat()
 	case 11:
 		break;
 	case 12:
+	default:
 		mCount = 0;
 		break;
 	}

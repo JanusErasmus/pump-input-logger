@@ -1,16 +1,17 @@
 #ifndef PumpFrame_h
 #define PumpFrame_h
-
 #include <arduino.h>
+
+#include "Time.h"
 
 class PumpFrameClass
 {
 public:
-  long reportRate;  //4
+  time_t reportRate;  //4
+  time_t upTime;  //4
+  time_t restTime; //4
   uint8_t startHour; //1
   uint8_t endHour;  //1
-  long upTime;  //4
-  long restTime; //4
   uint16_t port; //2
   uint8_t server[4]; //4
   uint8_t crc; //1

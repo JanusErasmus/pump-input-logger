@@ -2,18 +2,18 @@
 
 #include "event.h"
 
-extern uint8_t calc_crc(uint8_t * buff, uint8_t len);
+#include "utils.h"
 
 Event::Event()
 {
-  timeStamp = 0;
-  port = 0;
+  timeStamp = now();
+  port = 3;
   state = 0;
   ack = 0xFF;
-  crc = 0;
+  crc = calc_crc((uint8_t*)this, sizeof(Event) - 1);
 }
 
-Event::Event(long timeStamp, uint8_t port, uint8_t state)
+Event::Event(time_t timeStamp, uint8_t port, uint8_t state)
 {
   this->timeStamp = timeStamp;
   this->port = port;
@@ -97,7 +97,7 @@ String Event::getString()
 
   Serial.println("Event");
   Serial.print(" time: ");
-  Serial.println(timeStamp);
+  digitalClockDisplay(timeStamp);
   Serial.print(" Port: ");
   Serial.println(port);
   Serial.print(" Stat: ");

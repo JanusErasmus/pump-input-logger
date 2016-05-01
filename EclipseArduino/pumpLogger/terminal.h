@@ -2,6 +2,8 @@
 #define TERMINAL_H_
 #include <WString.h>
 
+#include "Time.h"
+
 class Terminal
 {
 public:

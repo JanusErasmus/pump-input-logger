@@ -3,24 +3,26 @@
 #include <IPAddress.h>
 #include <WiFiClient.h>
 
+#include "state_logger.h"
+#include "Time.h"
+
 class EventReporterClass
 {
 public:
 	enum eReportState
 	{
-		RP_UNKNOWN,
-		RP_IDLE,
+		RP_UPDATE,
 		RP_CONNECT,
 		RP_CLIENT,
 		RP_TRANSFER,
-		RP_DISCONNECT
+		RP_DISCONNECT,
+		RP_IDLE
 	};
 
 private:
 	bool mProbed;
 
-
-
+	time_t mLastSync;
 	eReportState mState;
 
 	int mRSSI;
@@ -33,7 +35,8 @@ public:
 	EventReporterClass(const char * ssid, const char * pass, IPAddress server);
 	virtual ~EventReporterClass();
 
-	void service();
+	bool run(StateLoggerClass * logger);
+	bool sync();
 
 	uint8_t status();
 	void printStatus(int status = -1);
