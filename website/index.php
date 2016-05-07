@@ -49,7 +49,7 @@
     <head>    
         <link href="styles.css" rel="stylesheet" type="text/css">
         <link  href="menu/styles.css" rel="stylesheet">
-        <script src="http://code.jquery.com/jquery-latest.min.js" type="text/javascript"></script>
+        <script src="libraries/jquery-latest.min.js" type="text/javascript"></script>
         <script src="menu/script.js"></script>
         <link rel="icon" href="images/pump.png">
         <title>Pump Input Logger</title>
@@ -64,8 +64,7 @@
             <ul>
                <li class='active'><a href='index.php'>Home</a></li>
                <li><a href='plot.php'>Daily plot</a></li>
-               <li><a href='#'>Monthly plot</a></li>
-               <li><a href='#'>About</a></li>
+               <li><a href='month.php'>Monthly</a></li>
             </ul>
             </div>
         </nav>
@@ -86,7 +85,7 @@
         </article>
         	
          <footer>        
-            <b>Nice ne</b>        
+            <b>Logger Daemon May 2016</b>        
         </footer>        
     </body>
 </html>

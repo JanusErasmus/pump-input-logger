@@ -1,4 +1,5 @@
 #include <WiFi.h>
+#include <avr/wdt.h>
 
 #include "reporter.h"
 #include "pump_frame.h"
@@ -31,6 +32,7 @@ bool Reporter::transfer()
 	statusStr += getStateString(3);
 	statusStr += getStateString(5);
 	statusStr += getStateString(6);
+	wdt_reset();
 	mClient->println(statusStr);
 
 	replyLogs();
@@ -56,20 +58,21 @@ bool Reporter::transfer()
 
 void Reporter::replyLogs()
 {
-  mLogger->reset();
+	mLogger->reset();
 
-  while(1)
-  {
-    Event evt = mLogger->getEvent();
-    if(!evt.crc)
-      break;
+	while(1)
+	{
+		wdt_reset();
+		Event evt = mLogger->getEvent();
+		if(!evt.crc)
+			break;
 
-    Serial.print("Got evt: ");
-    digitalClockDisplay(evt.timeStamp);
+		Serial.print("Got evt: ");
+		digitalClockDisplay(evt.timeStamp);
 
-      String log = evt.getString();
-      mClient->println(log);
-  }
+		String log = evt.getString();
+		mClient->println(log);
+	}
 }
 
 bool Reporter::serviceServerData()
@@ -104,7 +107,7 @@ bool Reporter::serviceServerData()
         digitalClockDisplay(timeStamp);
 
         //keep server settings
-        memcpy(frame.server, PumpFrame.server, 4);
+        memcpy(frame.server, PumpFrame.server, 68);
         frame.port = PumpFrame.port;
 
         frame.crc = calc_crc((uint8_t*)&frame, (sizeof(PumpFrame) - 1));

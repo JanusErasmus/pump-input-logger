@@ -13,11 +13,8 @@ PumpFrameClass::PumpFrameClass()
     endHour = 0xFF;
     upTime = 0;
     restTime = 0;
-    port = 60000;
-    server[0] = 192;
-    server[1] = 168;
-    server[2] = 1;
-    server[3] = 242;
+    port = 0;
+    memset(server, 0, 68);
     crc = 0xFF;
 }
 
@@ -33,11 +30,8 @@ PumpFrameClass::PumpFrameClass(int address)
 		endHour = 0xFF;
 		upTime = 0;
 		restTime = 0;
-		port = 60000;
-		server[0] = 192;
-		server[1] = 168;
-		server[2] = 1;
-		server[3] = 242;
+		port = 0;
+		memset(server, 0, 68);
 		crc = 0xFF;
 	}
 }
@@ -54,41 +48,63 @@ boolean PumpFrameClass::equals(PumpFrameClass * frame)
 
 void PumpFrameClass::setIP(String ipString, int flashAddress)
 {
-  uint8_t ip[5];
+	uint8_t ip[5];
 
-  memset(ip, 0,4);
+	memset(ip, 0,4);
 
-  int index = 0;
-   int subIndex = ipString.indexOf('.');
-   do
-   {
-     String arg = ipString.substring(0, subIndex);
-     ipString = ipString.substring(subIndex + 1);
-     Serial.println(arg);
-      ip[index++] = arg.toInt();
-     
-     subIndex = ipString.indexOf('.');   
-     
-      ip[index + 1] = ipString.substring(subIndex + 1).toInt();
-   }while((subIndex > 0) && (index < 3));
+	int index = 0;
+	int subIndex = ipString.indexOf('.');
+	do
+	{
+		String arg = ipString.substring(0, subIndex);
+		ipString = ipString.substring(subIndex + 1);
+		Serial.println(arg);
+		ip[index++] = arg.toInt();
 
-  if(index > 2)
-   {
-    Serial.println("Found valid ip");
-    memcpy(server, ip, 4);
+		subIndex = ipString.indexOf('.');
+
+		ip[index + 1] = ipString.substring(subIndex + 1).toInt();
+	}while((subIndex > 0) && (index < 3));
+
+	if(index > 2)
+	{
+		Serial.println("Found valid ip");
+		memcpy(server, ip, 4);
+
+		crc = calc_crc((uint8_t*)this, (sizeof(PumpFrameClass) - 1));
+
+		store(flashAddress);
+
+		print();
+	}
+
+}
+
+void PumpFrameClass::setPort(String portString, int flashAddress)
+{
+    port = portString.toInt();
 
     crc = calc_crc((uint8_t*)this, (sizeof(PumpFrameClass) - 1));
 
     store(flashAddress);
 
     print();
-   }
-   
 }
 
-void PumpFrameClass::setPort(String portString, int flashAddress)
+void PumpFrameClass::setId(String addrString, int flashAddress)
 {
-    port = portString.toInt();
+    addrString.toCharArray(ssid, 32);
+
+    crc = calc_crc((uint8_t*)this, (sizeof(PumpFrameClass) - 1));
+
+    store(flashAddress);
+
+    print();
+}
+
+void PumpFrameClass::setPass(String addrString, int flashAddress)
+{
+    addrString.toCharArray(password, 31);
 
     crc = calc_crc((uint8_t*)this, (sizeof(PumpFrameClass) - 1));
 
@@ -107,6 +123,8 @@ void PumpFrameClass::print()
   Serial.print(" rest : "); Serial.println(restTime);
   Serial.print(" srv  : "); Serial.print(server[0]); Serial.print("."); Serial.print(server[1]); Serial.print("."); Serial.print(server[2]); Serial.print("."); Serial.println(server[3]);
   Serial.print(" port : "); Serial.println(port);
+  Serial.print(" ssid : "); Serial.println(ssid);
+  Serial.print(" Pass : "); Serial.println(password);
   Serial.print(" crc  : "); Serial.println(crc);
 }
 

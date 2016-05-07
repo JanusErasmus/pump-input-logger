@@ -10,7 +10,7 @@
 #include "pump.h"
 
 PumpFrameClass PumpFrame(0);
-StateLoggerClass StateLogger(32);
+StateLoggerClass StateLogger(128);
 
 void tenthSecond(void)
 {
@@ -23,7 +23,9 @@ void setup()
 
 	//Initialize serial and wait for port to open:
 	Serial.begin(9600);
-	Serial.println("Wifi Pump Logger");
+	Serial.println("\n\nWifi Pump Logger");
+
+	//, IPAddress(192, 168, 1, 242)
 
 	LEDui.init(6); //green wire, TOP LED
 	Pump.init(5, 3); //pin 5: white wire, relay; //pin 3: PUMP blue
@@ -43,15 +45,14 @@ void setup()
 
 void loop()
 {
-	wdt_reset();
-
 	Pump.run();
 
 	if(EventReporter.run(&StateLogger))
 	{
-		wdt_reset();
 		delay(1000);
 	}
+
+	wdt_reset();
 }
 
 void serialEvent()

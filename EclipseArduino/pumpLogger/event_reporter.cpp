@@ -1,9 +1,13 @@
 #include <WiFi.h>
 #include <WiFiClient.h>
+#include <avr/wdt.h>
+#include <avr/io.h>
 
 #include "reporter.h"
 #include "pump_frame.h"
 #include "utils.h"
+
+extern PumpFrameClass PumpFrame;
 
 extern "C"
 {
@@ -16,14 +20,11 @@ extern "C"
 
 extern PumpFrameClass PumpFrame;
 
-EventReporterClass::EventReporterClass(const char * ssid, const char * pass, IPAddress server)
+EventReporterClass::EventReporterClass()
 {
 	mState = RP_IDLE;
 	mProbed = false;
 	mRSSI = -999;
-	mSSID = ssid;
-	mPassword = pass;
-	mServer = server;
 	mLastSync = 0;
 
 	// check for the presence of the shield:
@@ -31,7 +32,6 @@ EventReporterClass::EventReporterClass(const char * ssid, const char * pass, IPA
 	{
 		mProbed = true;
 	}
-
 }
 
 //returns true when idle
@@ -58,28 +58,47 @@ bool EventReporterClass::run(StateLoggerClass * logger)
 		{
 		case WL_IDLE_STATUS:
 		{
-			WiFi.begin((char*)mSSID, (char*)mPassword);
+			if((!PumpFrame.ssid[0]) || (!PumpFrame.password[0]))
+			{
+				Serial.println("Set SSID and password");
+				return true;
+			}
+
+			wdt_reset();
+			int status = WiFi.begin(PumpFrame.ssid, PumpFrame.password);
+			if(status != WL_CONNECTED)
+			{
+				Serial.println("Could not connect");
+
+				resetWiFi();
+				return true;
+			}
 		}
 		break;
 		case WL_CONNECTED:
 		{
 			Serial.println("RP: connected");
-			LEDui.setConnecting();
 
-			if(mClient.connect(mServer, 60000))
+			IPAddress server(PumpFrame.server);
+			wdt_reset();
+			if(mClient.connect(server, PumpFrame.port))
 			{
+				LEDui.setConnecting();
 				mState = RP_CLIENT;
 			}
 			else
 			{
 				Serial.println("Host unreachable");
 				mClient.stop();
+
+				LEDui.setError();
+				return true;
 			}
 		}
 		break;
 
 		default:
-			break;
+			return true;
 		}
 		break;
 		case RP_CLIENT:
@@ -104,7 +123,7 @@ bool EventReporterClass::run(StateLoggerClass * logger)
 				Reporter r(&mClient, logger);
 				if(r.transfer())
 				{
-					mState = RP_IDLE;
+					mState = RP_DISCONNECT;
 					LEDui.setIdle();
 
 					Serial.println("RP: stop client");
@@ -118,21 +137,20 @@ bool EventReporterClass::run(StateLoggerClass * logger)
 		case  RP_DISCONNECT:
 			Serial.println("RP: disconnect");
 
-
 			if(mClient.connected())
 			{
-
+				mClient.stop();
 			}
 
 			if(state == WL_CONNECTED)
 			{
 				Serial.println("RP: disconnecting");
-				WiFi.disconnect();
+
+				resetWiFi();
 
 				mState = RP_IDLE;
 			}
 			break;
-
 
 		case RP_IDLE:
 			//Serial.println("idle");
@@ -144,12 +162,21 @@ bool EventReporterClass::run(StateLoggerClass * logger)
 			}
 
 			return true;
-			break;
 	}
 
 	return false;
 }
 
+//setup A5 pin (PINC5) as output and pull low for 500ms, set as floating input again
+void EventReporterClass::resetWiFi()
+{
+	PORTC &= ~(1 << 5); //drive pin low
+	DDRC |= (1 << 5); //set PINC5 as output
+
+	delay(500);
+
+	DDRC &= ~(1 << 5); //pin as input again
+}
 
 bool EventReporterClass::sync()
 {
@@ -211,5 +238,5 @@ EventReporterClass::~EventReporterClass()
 }
 
 
-EventReporterClass EventReporter("J_C", "VictorHanny874", IPAddress(192, 168, 1, 242));
+EventReporterClass EventReporter;
 

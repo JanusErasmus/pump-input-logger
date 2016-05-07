@@ -29,6 +29,11 @@ class pumplog
 
         $this->calculateTimes();
     }
+
+	function getEvents()
+	{
+		return $this->events;
+	}
     
     function printLogData()
     {     

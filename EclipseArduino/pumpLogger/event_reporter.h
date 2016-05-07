@@ -20,19 +20,17 @@ public:
 	};
 
 private:
-	bool mProbed;
 
 	time_t mLastSync;
 	eReportState mState;
-
-	int mRSSI;
-	const char * mSSID;
-	const char * mPassword;
-	IPAddress mServer;
 	WiFiClient mClient;
+	int mRSSI;
+	bool mProbed;
+
+	void resetWiFi();
 
 public:
-	EventReporterClass(const char * ssid, const char * pass, IPAddress server);
+	EventReporterClass();
 	virtual ~EventReporterClass();
 
 	bool run(StateLoggerClass * logger);

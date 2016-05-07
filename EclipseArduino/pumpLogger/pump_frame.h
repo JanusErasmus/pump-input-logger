@@ -14,6 +14,8 @@ public:
   uint8_t endHour;  //1
   uint16_t port; //2
   uint8_t server[4]; //4
+  char ssid[32]; //32
+  char password[31]; //31
   uint8_t crc; //1
   
   PumpFrameClass();
@@ -25,6 +27,8 @@ public:
 
   void setIP(String ipString, int flashAddress);
   void setPort(String portString, int flashAddress);
+  void setId(String addrString, int flashAddress);
+  void setPass(String passString, int flashAddress);
 
   PumpFrameClass& operator=(PumpFrameClass &frame);
   
