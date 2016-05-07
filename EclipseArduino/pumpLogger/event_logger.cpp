@@ -1,9 +1,8 @@
-#include "state_logger.h"
-
 #include <EEPROM.h>
+#include "event_logger.h"
 
 
- StateLoggerClass::StateLoggerClass(int address)
+ EventLoggerClass::EventLoggerClass(int address)
 {
   mStartAddress = address;
   mHeadAddress = address;
@@ -38,7 +37,7 @@
   }  
 }
 
-void StateLoggerClass::clear()
+void EventLoggerClass::clear()
 {	
 	Event backUp[16];
 	int len = EEPROM.length() - mStartAddress;
@@ -85,7 +84,7 @@ void StateLoggerClass::clear()
   Serial.println(mTailAddress);
 }
 
-Event StateLoggerClass::getEvent()
+Event EventLoggerClass::getEvent()
 {
    Event evt(mCurrAddress);
 
@@ -94,7 +93,7 @@ Event StateLoggerClass::getEvent()
    return evt;
 }
 
-void StateLoggerClass::ack()
+void EventLoggerClass::ack()
 {
 	Event evt(mHeadAddress);
 	if(!evt.crc)
@@ -106,7 +105,7 @@ void StateLoggerClass::ack()
 	mHeadAddress += sizeof(Event);
 }
 
-void StateLoggerClass::showAll()
+void EventLoggerClass::showAll()
 {  
   Serial.print("Logger Head @ ");
   Serial.println(mHeadAddress);
@@ -125,7 +124,7 @@ void StateLoggerClass::showAll()
   }    
 }
 
-void StateLoggerClass::log(Event * evt)
+void EventLoggerClass::log(Event * evt)
 {
 	if((mTailAddress + sizeof(Event)) >= EEPROM.length())
 	{

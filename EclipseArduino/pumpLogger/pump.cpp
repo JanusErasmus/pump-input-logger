@@ -1,9 +1,10 @@
 #include "pump.h"
+
+#include "event_logger.h"
 #include "pump_frame.h"
-#include "state_logger.h"
 #include "utils.h"
 
-extern StateLoggerClass StateLogger;
+extern EventLoggerClass EventLogger;
 extern PumpFrameClass PumpFrame;
 
 PumpClass::PumpClass()
@@ -45,7 +46,7 @@ void PumpClass::sample()
 		if(timeStatus() == timeSet)
 		{
 			Event evt(now(), mLevelPin, pinState);
-			StateLogger.log(&evt);
+			EventLogger.log(&evt);
 			evt.print();
 
 			//Serial.println("Pump change");

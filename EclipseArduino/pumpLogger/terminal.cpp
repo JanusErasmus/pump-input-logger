@@ -1,12 +1,12 @@
 #include <Arduino.h>
 
 #include "terminal.h"
-#include "event_reporter.h"
 #include "utils.h"
 #include "pump_frame.h"
+#include "wifi_connector.h"
 
-extern StateLoggerClass StateLogger;
-extern EventReporterClass EventReporter;
+extern EventLoggerClass EventLogger;
+extern WiFiConnectorClass WiFiConnector;
 extern PumpFrameClass PumpFrame;
 
 Terminal::Terminal()
@@ -20,7 +20,7 @@ void Terminal::handle(String line)
 
 	if(line == "sync")
 	{
-		if(EventReporter.sync())
+		if(WiFiConnector.sync())
 			Serial.println("Sync scheduled");
 		else
 			Serial.println("Reporter is busy");
@@ -31,14 +31,14 @@ void Terminal::handle(String line)
 	if(line == "log")
 	{
 		Event evt;
-		StateLogger.log(&evt);
+		EventLogger.log(&evt);
 		evt.print();
 		return;
 	}
 
 	if(line == "stat")
 	{
-		EventReporter.printStatus();
+		WiFiConnector.printStatus();
 		return;
 	}
 

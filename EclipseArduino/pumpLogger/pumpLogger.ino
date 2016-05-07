@@ -2,15 +2,15 @@
 #include <Arduino.h>
 #include <TimerOne.h>
 
+#include "event_logger.h"
 #include "pump_frame.h"
-#include "state_logger.h"
-#include "event_reporter.h"
 #include "led_dui.h"
 #include "terminal.h"
 #include "pump.h"
+#include "wifi_connector.h"
 
 PumpFrameClass PumpFrame(0);
-StateLoggerClass StateLogger(128);
+EventLoggerClass EventLogger(128);
 
 void tenthSecond(void)
 {
@@ -24,8 +24,6 @@ void setup()
 	//Initialize serial and wait for port to open:
 	Serial.begin(9600);
 	Serial.println("\n\nWifi Pump Logger");
-
-	//, IPAddress(192, 168, 1, 242)
 
 	LEDui.init(6); //green wire, TOP LED
 	Pump.init(5, 3); //pin 5: white wire, relay; //pin 3: PUMP blue
@@ -47,7 +45,7 @@ void loop()
 {
 	Pump.run();
 
-	if(EventReporter.run(&StateLogger))
+	if(WiFiConnector.run(&EventLogger))
 	{
 		delay(1000);
 	}

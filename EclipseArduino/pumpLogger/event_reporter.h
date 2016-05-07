@@ -1,45 +1,26 @@
 #ifndef EVENT_REPORTER_H_
 #define EVENT_REPORTER_H_
-#include <IPAddress.h>
+#include <Arduino.h>
 #include <WiFiClient.h>
 
-#include "state_logger.h"
-#include "Time.h"
+#include "event_logger.h"
 
-class EventReporterClass
+class EventReporter
 {
-public:
-	enum eReportState
-	{
-		RP_UPDATE,
-		RP_CONNECT,
-		RP_CLIENT,
-		RP_TRANSFER,
-		RP_DISCONNECT,
-		RP_IDLE
-	};
+	WiFiClient * mClient;
+	EventLoggerClass * mLogger;
 
-private:
+	void replyLogs();
+	bool serviceServerData();
 
-	time_t mLastSync;
-	eReportState mState;
-	WiFiClient mClient;
-	int mRSSI;
-	bool mProbed;
-
-	void resetWiFi();
+	String getMACstring(byte mac[6]);
+	String getStateString(int port);
 
 public:
-	EventReporterClass();
-	virtual ~EventReporterClass();
+	EventReporter(WiFiClient * client, EventLoggerClass * logger);
+	virtual ~EventReporter();
 
-	bool run(StateLoggerClass * logger);
-	bool sync();
-
-	uint8_t status();
-	void printStatus(int status = -1);
+	bool transfer();
 };
-
-extern EventReporterClass EventReporter;
 
 #endif /* EVENT_REPORTER_H_ */

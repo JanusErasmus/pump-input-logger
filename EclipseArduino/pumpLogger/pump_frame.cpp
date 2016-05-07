@@ -2,7 +2,7 @@
 
 #include <EEPROM.h>
 
-#include "state_logger.h"
+#include "event_logger.h"
 
 extern uint8_t calc_crc(uint8_t * buff, uint8_t len);
 
