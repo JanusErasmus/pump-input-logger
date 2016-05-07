@@ -23,7 +23,7 @@ void setup()
 
 	//Initialize serial and wait for port to open:
 	Serial.begin(9600);
-	Serial.println("\n\nWifi Pump Logger");
+	Serial.println(F("\n\nWifi Pump Logger"));
 
 	LEDui.init(6); //green wire, TOP LED
 	Pump.init(5, 3); //pin 5: white wire, relay; //pin 3: PUMP blue

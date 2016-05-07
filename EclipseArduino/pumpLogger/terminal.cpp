@@ -18,17 +18,17 @@ void Terminal::handle(String line)
 	line.trim();
 	//Serial.println(line);
 
-	if(line == "sync")
+	if(line == F("sync"))
 	{
 		if(WiFiConnector.sync())
-			Serial.println("Sync scheduled");
+			Serial.println(F("Sync scheduled"));
 		else
-			Serial.println("Reporter is busy");
+			Serial.println(F("Reporter is busy"));
 
 		return;
 	}
 
-	if(line == "log")
+	if(line == F("log"))
 	{
 		Event evt;
 		EventLogger.log(&evt);
@@ -36,15 +36,15 @@ void Terminal::handle(String line)
 		return;
 	}
 
-	if(line == "stat")
+	if(line == F("stat"))
 	{
 		WiFiConnector.printStatus();
 		return;
 	}
 
-	if(line == "time")
+	if(line == F("time"))
 	{
-		Serial.print("Time: ");
+		Serial.print(F("Time: "));
 
 		switch(timeStatus())
 		{
@@ -53,18 +53,18 @@ void Terminal::handle(String line)
 			break;
 
 		case timeNotSet:
-			Serial.println(" not set");
+			Serial.println(F(" not set"));
 			break;
 
 		case timeNeedsSync:
-			Serial.println(" need sync");
+			Serial.println(F(" need sync"));
 			break;
 		}
 
 		return;
 	}
 
-	if(line == "cfg")
+	if(line == F("cfg"))
 	{
 		PumpFrame.print();
 
@@ -80,29 +80,29 @@ void Terminal::handle(String line)
 		//Serial.println(cmd);
 		//Serial.println(arg);
 
-		if(cmd == "setip")
+		if(cmd == F("setip"))
 		{
-			Serial.print("Set IP: "); Serial.println(arg);
+			Serial.print(F("Set IP: ")); Serial.println(arg);
 
 			PumpFrame.setIP(arg, 0);
 		}
-		else if(cmd == "setport")
+		else if(cmd == F("setport"))
 		{
-			Serial.print("Set PORT: "); Serial.println(arg);
+			Serial.print(F("Set PORT: ")); Serial.println(arg);
 
 			PumpFrame.setPort(arg ,0);
 		}
 
-		if(cmd == "setid")
+		if(cmd == F("setid"))
 		{
-			Serial.print("Set ID: "); Serial.println(arg);
+			Serial.print(F("Set ID: ")); Serial.println(arg);
 
 			PumpFrame.setId(arg, 0);
 		}
 
-		if(cmd == "setpass")
+		if(cmd == F("setpass"))
 		{
-			Serial.print("Set Pass: "); Serial.println(arg);
+			Serial.print(F("Set Pass: ")); Serial.println(arg);
 
 			PumpFrame.setPass(arg, 0);
 		}

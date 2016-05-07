@@ -41,10 +41,10 @@ void PumpClass::sample()
 
 	if(pinState != prevState)
 	{
-		prevState = pinState;
-
 		if(timeStatus() == timeSet)
 		{
+			prevState = pinState;
+
 			Event evt(now(), mLevelPin, pinState);
 			EventLogger.log(&evt);
 			evt.print();
@@ -94,7 +94,7 @@ void PumpClass::handleOverride()
 
     digitalWrite(mOverridePin, LOW);
 
-    Serial.print("Pump start: ");
+    Serial.print(F("Pump start: "));
     digitalClockDisplay(pumpStart);
 
     return;
@@ -108,7 +108,7 @@ void PumpClass::handleOverride()
 
       digitalWrite(mOverridePin, HIGH);
 
-      Serial.print("Pump rest: ");
+      Serial.print(F("Pump rest: "));
       digitalClockDisplay(pumpRest);
 
       return;
@@ -124,7 +124,7 @@ void PumpClass::handleOverride()
 
       digitalWrite(mOverridePin, LOW);
 
-      Serial.println("Pump rested");
+      Serial.println(F("Pump rested"));
     }
 
     return;
@@ -137,7 +137,7 @@ void PumpClass::handleOverride()
 
     digitalWrite(mOverridePin, LOW);
 
-    Serial.println("Pump stopped");
+    Serial.println(F("Pump stopped"));
 
     return;
   }

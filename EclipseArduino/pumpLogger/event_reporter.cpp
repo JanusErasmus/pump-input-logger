@@ -18,14 +18,14 @@ bool EventReporter::transfer()
 	if(!mClient)
 		return true;
 
-	Serial.println("Client transferring");
+	Serial.println(F("Client transferring"));
 
 	byte mac[6];
 	WiFi.macAddress(mac);
 	String macStr = getMACstring(mac);
 
 	mClient->flush();
-	mClient->print("RSSI: ");
+	mClient->print(F("RSSI: "));
 	mClient->println(WiFi.RSSI());
 	mClient->println(macStr);
 
@@ -68,7 +68,7 @@ void EventReporter::replyLogs()
 		if(!evt.crc)
 			break;
 
-		Serial.print("Got evt: ");
+		Serial.print(F("Got evt: "));
 		digitalClockDisplay(evt.timeStamp);
 
 		String log = evt.getString();
@@ -104,7 +104,7 @@ bool EventReporter::serviceServerData()
         long timeStamp = rxString.substring(1).toInt();
         setTime(timeStamp);
 
-        Serial.print("Time: ");
+        Serial.print(F("Time: "));
         digitalClockDisplay(timeStamp);
 
         //keep server settings
@@ -117,7 +117,7 @@ bool EventReporter::serviceServerData()
           PumpFrame = frame;
           PumpFrame.store(0);
 
-          Serial.println("Update pump frame values");
+          Serial.println(F("Update pump frame values"));
           PumpFrame.print();
         }
 
@@ -215,7 +215,7 @@ String EventReporter::getStateString(int port)
   }
 
   str += String(port);
-  str += String("\r\n");
+  str += String(F("\r\n"));
 
   return str;
 }

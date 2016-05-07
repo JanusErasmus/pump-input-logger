@@ -68,7 +68,7 @@ void PumpFrameClass::setIP(String ipString, int flashAddress)
 
 	if(index > 2)
 	{
-		Serial.println("Found valid ip");
+		Serial.println(F("Found valid ip"));
 		memcpy(server, ip, 4);
 
 		crc = calc_crc((uint8_t*)this, (sizeof(PumpFrameClass) - 1));
@@ -115,17 +115,17 @@ void PumpFrameClass::setPass(String addrString, int flashAddress)
 
 void PumpFrameClass::print()
 {
-  Serial.println("PumpFrame:");
-  Serial.print(" rate : "); Serial.println(reportRate);
-  Serial.print(" start: "); Serial.println(startHour);
-  Serial.print(" end  : "); Serial.println(endHour);
-  Serial.print(" up   : "); Serial.println(upTime);
-  Serial.print(" rest : "); Serial.println(restTime);
-  Serial.print(" srv  : "); Serial.print(server[0]); Serial.print("."); Serial.print(server[1]); Serial.print("."); Serial.print(server[2]); Serial.print("."); Serial.println(server[3]);
-  Serial.print(" port : "); Serial.println(port);
-  Serial.print(" ssid : "); Serial.println(ssid);
-  Serial.print(" Pass : "); Serial.println(password);
-  Serial.print(" crc  : "); Serial.println(crc);
+  Serial.println(F("PumpFrame:"));
+  Serial.print(F(" rate : ")); Serial.println(reportRate);
+  Serial.print(F(" start: ")); Serial.println(startHour);
+  Serial.print(F(" end  : ")); Serial.println(endHour);
+  Serial.print(F(" up   : ")); Serial.println(upTime);
+  Serial.print(F(" rest : ")); Serial.println(restTime);
+  Serial.print(F(" srv  : ")); Serial.print(server[0]); Serial.print("."); Serial.print(server[1]); Serial.print("."); Serial.print(server[2]); Serial.print("."); Serial.println(server[3]);
+  Serial.print(F(" port : ")); Serial.println(port);
+  Serial.print(F(" ssid : ")); Serial.println(ssid);
+  Serial.print(F(" Pass : ")); Serial.println(password);
+  Serial.print(F(" crc  : ")); Serial.println(crc);
 }
 
 PumpFrameClass& PumpFrameClass::operator=(PumpFrameClass &frame)

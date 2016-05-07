@@ -69,7 +69,7 @@ void EventLoggerClass::clear()
 	{
 		if(backUp[k - 1].crc)
 		{
-			  Serial.print("Log @ ");
+			  Serial.print(F("Log @ "));
 			  Serial.println(mTailAddress);
 			  
 			backUp[k - 1].store(mTailAddress);	
@@ -77,10 +77,10 @@ void EventLoggerClass::clear()
 		}
 	}
 	
-	  Serial.print("Logger Head @ ");
+	  Serial.print(F("Logger Head @ "));
   Serial.println(mHeadAddress);
 
-  Serial.print("Logger Tail @ ");
+  Serial.print(F("Logger Tail @ "));
   Serial.println(mTailAddress);
 }
 
@@ -107,10 +107,10 @@ void EventLoggerClass::ack()
 
 void EventLoggerClass::showAll()
 {  
-  Serial.print("Logger Head @ ");
+  Serial.print(F("Logger Head @ "));
   Serial.println(mHeadAddress);
 
-  Serial.print("Logger Tail @ ");
+  Serial.print(F("Logger Tail @ "));
   Serial.println(mTailAddress);
 
   reset();
@@ -131,7 +131,7 @@ void EventLoggerClass::log(Event * evt)
 		clear();	  
 	}
 	
-  Serial.print("Log @ ");
+  Serial.print(F("Log @ "));
   Serial.println(mTailAddress);
   //evt->print();
   

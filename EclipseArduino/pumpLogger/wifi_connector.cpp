@@ -38,7 +38,10 @@ WiFiConnectorClass::WiFiConnectorClass()
 bool WiFiConnectorClass::run(EventLoggerClass * logger)
 {
 	if(!mProbed || !logger)
-		return false;
+	{
+		resetWiFi();
+		return true;
+	}
 
 	uint8_t state = WiFi.status();
 	//printStatus(state);
@@ -46,21 +49,21 @@ bool WiFiConnectorClass::run(EventLoggerClass * logger)
 	switch(mState)
 	{
 	case RP_UPDATE:
-		Serial.println("RP: update");
+		Serial.println(F("RP: update"));
 		{
 			if((state == WL_IDLE_STATUS) || (state == WL_CONNECTED))
 				mState = RP_CONNECT;
 		}
 		break;
 	case RP_CONNECT:
-		Serial.println("RP: connecting");
+		Serial.println(F("RP: connecting"));
 		switch(state)
 		{
 		case WL_IDLE_STATUS:
 		{
 			if((!PumpFrame.ssid[0]) || (!PumpFrame.password[0]))
 			{
-				Serial.println("Set SSID and password");
+				Serial.println(F("Set SSID and password"));
 				return true;
 			}
 
@@ -68,7 +71,7 @@ bool WiFiConnectorClass::run(EventLoggerClass * logger)
 			int status = WiFi.begin(PumpFrame.ssid, PumpFrame.password);
 			if(status != WL_CONNECTED)
 			{
-				Serial.println("Could not connect");
+				Serial.println(F("Could not connect"));
 
 				resetWiFi();
 				return true;
@@ -77,7 +80,7 @@ bool WiFiConnectorClass::run(EventLoggerClass * logger)
 		break;
 		case WL_CONNECTED:
 		{
-			Serial.println("RP: connected");
+			Serial.println(F("RP: connected"));
 
 			IPAddress server(PumpFrame.server);
 			wdt_reset();
@@ -88,7 +91,7 @@ bool WiFiConnectorClass::run(EventLoggerClass * logger)
 			}
 			else
 			{
-				Serial.println("Host unreachable");
+				Serial.println(F("Host unreachable"));
 				mClient.stop();
 
 				LEDui.setError();
@@ -102,7 +105,7 @@ bool WiFiConnectorClass::run(EventLoggerClass * logger)
 		}
 		break;
 		case RP_CLIENT:
-			Serial.println("RP: wait client");
+			Serial.println(F("RP: wait client"));
 			if(mClient.connected())
 			{
 				mState = RP_TRANSFER;
@@ -114,7 +117,7 @@ bool WiFiConnectorClass::run(EventLoggerClass * logger)
 
 			if(!mClient)
 			{
-				Serial.println(" NO CLIENT");
+				Serial.println(F(" NO CLIENT"));
 				break;
 			}
 
@@ -126,16 +129,16 @@ bool WiFiConnectorClass::run(EventLoggerClass * logger)
 					mState = RP_DISCONNECT;
 					LEDui.setIdle();
 
-					Serial.println("RP: stop client");
+					Serial.println(F("RP: stop client"));
 					mClient.stop();
 
 					mLastSync = now();
-					Serial.println("RP: transfer DONE");
+					Serial.println(F("RP: transfer DONE"));
 				}
 			}
 			break;
 		case  RP_DISCONNECT:
-			Serial.println("RP: disconnect");
+			Serial.println(F("RP: disconnect"));
 
 			if(mClient.connected())
 			{
@@ -144,7 +147,7 @@ bool WiFiConnectorClass::run(EventLoggerClass * logger)
 
 			if(state == WL_CONNECTED)
 			{
-				Serial.println("RP: disconnecting");
+				Serial.println(F("RP: disconnecting"));
 
 				resetWiFi();
 
@@ -153,11 +156,11 @@ bool WiFiConnectorClass::run(EventLoggerClass * logger)
 			break;
 
 		case RP_IDLE:
-			//Serial.println("idle");
+			//Serial.println(F("idle"));
 
 			if((timeStatus() != timeSet) || (now() > (mLastSync + PumpFrame.reportRate)))
 			{
-				Serial.println("RP: Time to report");
+				Serial.println(F("RP: Time to report"));
 				mState = RP_UPDATE;
 			}
 
@@ -191,10 +194,10 @@ bool WiFiConnectorClass::sync()
 
 void WiFiConnectorClass::printStatus(int state)
 {
-	Serial.println("EventReporter State:");
-	Serial.print(" - Last transfer: ");
+	Serial.println(F("EventReporter State:"));
+	Serial.print(F(" - Last transfer: "));
 	digitalClockDisplay(mLastSync);
-	Serial.print(" - WiFi state: ");
+	Serial.print(F(" - WiFi state: "));
 
 	if(state < 0)
 		state = WiFi.status();
@@ -202,28 +205,28 @@ void WiFiConnectorClass::printStatus(int state)
 		switch(state)
 		{
 		case WL_NO_SHIELD:
-			Serial.println("no shield");
+			Serial.println(F("no shield"));
 			break;
 		case WL_IDLE_STATUS:
-			Serial.println("idle");
+			Serial.println(F("idle"));
 			break;
 		case WL_NO_SSID_AVAIL:
-			Serial.println("no SSID");
+			Serial.println(F("no SSID"));
 			break;
 		case WL_SCAN_COMPLETED:
-			Serial.println("scan complete");
+			Serial.println(F("scan complete"));
 			break;
 		case  WL_CONNECTED:
-			Serial.println("connected");
+			Serial.println(F("connected"));
 			break;
 		case WL_CONNECT_FAILED:
-			Serial.println("connect failed");
+			Serial.println(F("connect failed"));
 			break;
 		case WL_CONNECTION_LOST:
-			Serial.println("connect lost");
+			Serial.println(F("connect lost"));
 			break;
 		case WL_DISCONNECTED:
-			Serial.println("disconnected");
+			Serial.println(F("disconnected"));
 			break;
 		}
 }

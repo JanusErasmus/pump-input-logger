@@ -64,7 +64,7 @@ boolean Event::isValid()
 
 	if(calc_crc((uint8_t*)this, sizeof(Event)))
 	{
-		Serial.println("Event: INVALID CRC");
+		Serial.println(F("Event: INVALID CRC"));
 		return 0;
 	}
 
@@ -91,20 +91,20 @@ String Event::getString()
 {
   if(!crc)
   {
-    Serial.println("Invalid event");
+    Serial.println(F("Invalid event"));
     return;
   }
 
-  Serial.println("Event");
+  Serial.println(F("Event"));
   Serial.print(" time: ");
   digitalClockDisplay(timeStamp);
-  Serial.print(" Port: ");
+  Serial.print(F(" Port: "));
   Serial.println(port);
-  Serial.print(" Stat: ");
+  Serial.print(F(" Stat: "));
   Serial.println(state);
-  Serial.print(" ACK : ");
+  Serial.print(F(" ACK : "));
   Serial.println(ack);
-  Serial.print(" CRC : ");
+  Serial.print(F(" CRC : "));
   Serial.println(crc);
  }
 
