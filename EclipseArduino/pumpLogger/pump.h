@@ -5,15 +5,27 @@
 
 class PumpClass
 {
+	enum ePumpState
+	{
+		OFF,
+		PUMPING,
+		RESTING,
+		OVERRIDE
+	}mStatus;
+
 	time_t pumpStart;
 	time_t pumpRest;
+
 	uint8_t mOverridePin;
 	uint8_t mLevelPin;
-	uint8_t prevState;
 
-	void sample();
-	void serviceFrame();
-	void handleOverride();
+	bool sample();
+
+	bool inFrame();
+	void start();
+	void rest();
+	//void serviceFrame();
+	//void handleOverride();
 
 public:
 	PumpClass();
@@ -21,6 +33,8 @@ public:
 
 	void init(uint8_t override, uint8_t level);
 	void run();
+
+	void printStatus();
 };
 
 

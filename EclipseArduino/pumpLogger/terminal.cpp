@@ -4,10 +4,12 @@
 #include "utils.h"
 #include "pump_frame.h"
 #include "wifi_connector.h"
+#include "pump.h"
 
 extern EventLoggerClass EventLogger;
 extern WiFiConnectorClass WiFiConnector;
 extern PumpFrameClass PumpFrame;
+extern PumpClass Pump;
 
 Terminal::Terminal()
 {
@@ -39,6 +41,7 @@ void Terminal::handle(String line)
 	if(line == F("stat"))
 	{
 		WiFiConnector.printStatus();
+		Pump.printStatus();
 		return;
 	}
 
