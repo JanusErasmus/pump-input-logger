@@ -88,25 +88,14 @@ void PumpClass::run()
 		{
 			start();
 		}
-
-		if(!levelPin)
-		{
-			mStatus = OFF;
-		}
 		break;
 	case OVERRIDE:
 		digitalWrite(mOverridePin, HIGH);
 
 		if(inFrame())
 		{
-			if(levelPin)
-			{
-				start();
-			}
-			else
-			{
-				mStatus = OFF;
-			}
+			digitalWrite(mOverridePin, LOW);
+			mStatus = OFF;
 		}
 		break;
 	}
@@ -255,6 +244,12 @@ void PumpClass::printStatus()
 
 	Serial.print(F(" - Rest: "));
 	digitalClockDisplay(pumpRest);
+
+	Serial.print(F(" - Level: "));
+	if( !digitalRead(mLevelPin))
+		Serial.println(F("HIGH"));
+	else
+		Serial.println(F("LOW"));
 }
 
 PumpClass::~PumpClass()
