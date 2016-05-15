@@ -56,16 +56,20 @@ bool WiFiConnectorClass::run(EventLoggerClass * logger)
 		}
 		break;
 	case RP_CONNECT:
-		Serial.println(F("RP: connecting"));
+		Serial.println(F("RP: connect"));
 		switch(state)
 		{
 		case WL_IDLE_STATUS:
 		{
+			Serial.println(F("WL: idle"));
 			if((!PumpFrame.ssid[0]) || (!PumpFrame.password[0]))
 			{
 				Serial.println(F("Set SSID and password"));
 				return true;
 			}
+
+			LEDui.setError();
+
 
 			wdt_reset();
 			int status = WiFi.begin(PumpFrame.ssid, PumpFrame.password);
@@ -76,11 +80,13 @@ bool WiFiConnectorClass::run(EventLoggerClass * logger)
 				resetWiFi();
 				return true;
 			}
+
+			LEDui.setWifi();
 		}
 		break;
 		case WL_CONNECTED:
 		{
-			Serial.println(F("RP: connected"));
+			Serial.println(F("WL: connected"));
 
 			IPAddress server(PumpFrame.server);
 			wdt_reset();
@@ -94,7 +100,6 @@ bool WiFiConnectorClass::run(EventLoggerClass * logger)
 				Serial.println(F("Host unreachable"));
 				mClient.stop();
 
-				LEDui.setError();
 				return true;
 			}
 		}
@@ -113,7 +118,7 @@ bool WiFiConnectorClass::run(EventLoggerClass * logger)
 
 			break;
 		case RP_TRANSFER:
-			//Serial.print("transfer");
+			//Serial.print(F("RP: transfer"));
 
 			if(!mClient)
 			{

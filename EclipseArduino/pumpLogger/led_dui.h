@@ -11,6 +11,7 @@ class LEDuiClass
 	{
 		LED_ERROR,
 		LED_HEARTBEAT,
+		LED_WIFI,
 		LED_CONNECTING,
 	};
 
@@ -18,6 +19,7 @@ class LEDuiClass
 
 	void error();
 	void heartBeat();
+	void WiFiup();
 	void connecting();
 
 public:
@@ -31,6 +33,7 @@ public:
 	void setError(){ mState = LED_ERROR; };
 	void setIdle(){ mState = LED_HEARTBEAT; };
 	void setConnecting(){ mState = LED_CONNECTING; };
+	void setWifi(){ mState = LED_WIFI; };
 };
 
 extern LEDuiClass LEDui;

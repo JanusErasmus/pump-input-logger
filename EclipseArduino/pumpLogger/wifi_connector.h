@@ -27,7 +27,6 @@ private:
 	int mRSSI;
 	bool mProbed;
 
-	void resetWiFi();
 
 public:
 	WiFiConnectorClass();
@@ -35,6 +34,7 @@ public:
 
 	bool run(EventLoggerClass * logger);
 	bool sync();
+	void resetWiFi();
 
 	uint8_t status();
 	void printStatus(int status = -1);

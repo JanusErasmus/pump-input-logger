@@ -12,6 +12,9 @@
 PumpFrameClass PumpFrame(0);
 EventLoggerClass EventLogger(128);
 
+#define WDT_TIMEOUT 5 //after 48 seconds, the watchdog will reset the system
+int8_t wdTimeOut = WDT_TIMEOUT;
+
 void tenthSecond(void)
 {
 	LEDui.run();
@@ -20,6 +23,7 @@ void tenthSecond(void)
 void setup()
 {
 	wdt_enable(WDTO_8S);
+	WDTCSR |= 0x40;
 
 	//Initialize serial and wait for port to open:
 	Serial.begin(9600);
@@ -51,6 +55,7 @@ void loop()
 	}
 
 	wdt_reset();
+	wdTimeOut  = WDT_TIMEOUT;
 }
 
 void serialEvent()
@@ -72,4 +77,16 @@ void serialEvent()
 			inputString = "";
 		}
 	}
+}
+
+ISR(WDT_vect)
+{
+	Serial.print(F("WDT "));
+	Serial.println(wdTimeOut);
+
+	if(wdTimeOut-- > 0)
+		WDTCSR |= 0x40;
+
+	if(wdTimeOut == 0)
+		WiFiConnector.resetWiFi();
 }

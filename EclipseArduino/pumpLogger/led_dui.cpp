@@ -30,6 +30,9 @@ void LEDuiClass::run()
 	case LED_ERROR:
 		error();
 		break;
+	case LED_WIFI:
+		WiFiup();
+		break;
 	}
 }
 
@@ -59,7 +62,6 @@ void LEDuiClass::error()
 	default:
 		mCount = 0;
 		break;
-
 	}
 }
 
@@ -105,6 +107,42 @@ void LEDuiClass::connecting()
 	else
 	{
 		digitalWrite(mPin, HIGH);
+	}
+}
+
+void LEDuiClass::WiFiup()
+{
+	switch(mCount++)
+	{
+	case 0:
+		digitalWrite(mPin, HIGH);
+		break;
+	case 1:
+		digitalWrite(mPin, LOW);
+		break;
+	case 2:
+		digitalWrite(mPin, HIGH);
+		break;
+	case 3:
+		digitalWrite(mPin, LOW);
+		break;
+	case 4:
+		digitalWrite(mPin, HIGH);
+				break;
+	case 5:
+		digitalWrite(mPin, LOW);
+		break;
+	case 6:
+	case 7:
+	case 8:
+	case 9:
+	case 10:
+	case 11:
+		break;
+	case 12:
+	default:
+		mCount = 0;
+		break;
 	}
 }
 
