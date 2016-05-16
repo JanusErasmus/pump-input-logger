@@ -24,8 +24,6 @@ class PumpClass
 	bool inFrame();
 	void start();
 	void rest();
-	//void serviceFrame();
-	//void handleOverride();
 
 public:
 	PumpClass();

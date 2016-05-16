@@ -1,5 +1,5 @@
-#ifndef LED_DUI_H_
-#define LED_DUI_H_
+#ifndef LED_UI_H_
+#define LED_UI_H_
 #include <Arduino.h>
 
 class LEDuiClass
@@ -38,4 +38,4 @@ public:
 
 extern LEDuiClass LEDui;
 
-#endif /* LED_DUI_H_ */
+#endif /* LED_UI_H_ */
